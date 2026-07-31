@@ -7,19 +7,24 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-// Max 10 pins per IP per day. Adjust once you see real usage patterns —
-// this is a placeholder threshold, not a tuned number (see spec, open questions).
-export const pinCreateLimiter = new Ratelimit({
+// 1 pin per IP per day, per action type (spec Section 4) — rent pins,
+// listings, and seeker pins are capped independently of each other.
+export const rentPinCreateLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(10, '1 d'),
-  prefix: 'ggnlife:pin-create',
+  limiter: Ratelimit.slidingWindow(1, '1 d'),
+  prefix: 'ggnlife:rent-pin-create',
 });
 
-// Lighter limit for votes/reports — cheap actions, but still worth capping.
-export const voteLimiter = new Ratelimit({
+export const listingCreateLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(60, '1 h'),
-  prefix: 'ggnlife:vote',
+  limiter: Ratelimit.slidingWindow(1, '1 d'),
+  prefix: 'ggnlife:listing-create',
+});
+
+export const seekerPinCreateLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(1, '1 d'),
+  prefix: 'ggnlife:seeker-pin-create',
 });
 
 // Never store raw IPs. Hash with a server-only salt before persisting
