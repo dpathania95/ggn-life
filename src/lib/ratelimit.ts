@@ -27,6 +27,15 @@ export const seekerPinCreateLimiter = new Ratelimit({
   prefix: 'ggnlife:seeker-pin-create',
 });
 
+// Nominatim's usage policy caps requests at 1/second GLOBALLY, across all
+// callers of the shared free public API — not per-IP like the limiters
+// above (spec Section 3.8). Always call .limit('global') with this one.
+export const nominatimThrottle = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(1, '1 s'),
+  prefix: 'ggnlife:nominatim',
+});
+
 // Never store raw IPs. Hash with a server-only salt before persisting
 // (e.g. in pins.ip_hash) so abuse patterns are detectable without keeping PII.
 export function hashIp(ip: string): string {

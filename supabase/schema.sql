@@ -312,6 +312,47 @@ create trigger seeker_pins_assign_zone
   for each row
   execute function assign_nearest_zone();
 
+-- RPC for bounding-box queries (used by the map to load seeker pins in
+-- view, spec Section 3.9's layer toggle). Explicitly whitelists public-safe
+-- columns — contact_email and manage_token_hash are never returned, since
+-- this table has no public SELECT policy for exactly that reason.
+create or replace function seeker_pins_in_bounds(
+  min_lng double precision,
+  min_lat double precision,
+  max_lng double precision,
+  max_lat double precision
+)
+returns table (
+  id uuid,
+  budget_min integer,
+  budget_max integer,
+  bhk rent_bhk,
+  preferred_zone_ids uuid[],
+  move_in_by date,
+  gender_pref gender_pref_type,
+  smoking_pref smoking_pref_type,
+  food_pref food_pref_type,
+  pet_owner boolean,
+  lat double precision,
+  lng double precision,
+  zone_id uuid,
+  status seeker_status,
+  created_at timestamptz
+)
+language sql
+stable
+as $$
+  select
+    s.id, s.budget_min, s.budget_max, s.bhk, s.preferred_zone_ids, s.move_in_by,
+    s.gender_pref, s.smoking_pref, s.food_pref, s.pet_owner, s.lat, s.lng,
+    s.zone_id, s.status, s.created_at
+  from seeker_pins s
+  where s.status = 'active'
+    and s.location && ST_MakeEnvelope(min_lng, min_lat, max_lng, max_lat, 4326)::geography
+  order by s.created_at desc
+  limit 500;
+$$;
+
 -- 7. Match — records a seeker<->listing or seeker<->seeker pairing (spec Section 7)
 create table matches (
   id uuid primary key default gen_random_uuid(),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import DropChooser from '@/components/DropChooser';
 import RentPinForm from '@/components/RentPinForm';
@@ -8,7 +8,18 @@ import RentPinDetail from '@/components/RentPinDetail';
 import ListingForm from '@/components/ListingForm';
 import ListingDetail from '@/components/ListingDetail';
 import SeekerPinForm from '@/components/SeekerPinForm';
-import { Listing, NewListingInput, NewRentPinInput, NewSeekerPinInput, RentPin } from '@/types/rental';
+import SeekerPinDetail from '@/components/SeekerPinDetail';
+import SearchBar from '@/components/SearchBar';
+import FilterPanel from '@/components/FilterPanel';
+import { DEFAULT_FILTERS, DEFAULT_LAYERS, matchesListingFilters, matchesRentPinFilters } from '@/lib/filterPins';
+import {
+  Listing,
+  NewListingInput,
+  NewRentPinInput,
+  NewSeekerPinInput,
+  RentPin,
+  SeekerPin,
+} from '@/types/rental';
 
 // MapLibre touches window/DOM APIs — must be client-only, no SSR.
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false });
@@ -19,13 +30,19 @@ type DropFlow = 'choose' | 'rent_pin' | 'listing' | 'seeker_pin';
 export default function HomePage() {
   const [rentPins, setRentPins] = useState<RentPin[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
+  const [seekerPins, setSeekerPins] = useState<SeekerPin[]>([]);
   const [dropLocation, setDropLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [dropFlow, setDropFlow] = useState<DropFlow>('choose');
   const [selectedPin, setSelectedPin] = useState<RentPin | null>(null);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [selectedSeekerPin, setSelectedSeekerPin] = useState<SeekerPin | null>(null);
   const [manageInfo, setManageInfo] = useState<{ token: string; kind: 'listing' | 'seeker_pin' } | null>(
     null
   );
+  const [flyTo, setFlyTo] = useState<{ lat: number; lng: number } | null>(null);
+  const [layers, setLayers] = useState(DEFAULT_LAYERS);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const loadRentPins = useCallback(async (b: Bounds) => {
     const params = new URLSearchParams({
@@ -53,12 +70,26 @@ export default function HomePage() {
     setListings(rows);
   }, []);
 
+  const loadSeekerPins = useCallback(async (b: Bounds) => {
+    const params = new URLSearchParams({
+      minLng: String(b.minLng),
+      minLat: String(b.minLat),
+      maxLng: String(b.maxLng),
+      maxLat: String(b.maxLat),
+    });
+    const res = await fetch(`/api/seeker-pins?${params}`);
+    if (!res.ok) return;
+    const { seekerPins: rows } = await res.json();
+    setSeekerPins(rows);
+  }, []);
+
   const handleBoundsChange = useCallback(
     (b: Bounds) => {
       loadRentPins(b);
       loadListings(b);
+      loadSeekerPins(b);
     },
-    [loadRentPins, loadListings]
+    [loadRentPins, loadListings, loadSeekerPins]
   );
 
   const closeDropFlow = () => {
@@ -113,30 +144,58 @@ export default function HomePage() {
       const { error } = await res.json();
       throw new Error(error ?? 'Failed to start matching');
     }
-    const { manageToken: token } = await res.json();
+    const { seekerPin, manageToken: token } = await res.json();
+    setSeekerPins((prev) => [seekerPin, ...prev]);
     setManageInfo({ token, kind: 'seeker_pin' });
     closeDropFlow();
   };
 
+  // Layer toggle + filters (spec Section 3.9) — filtering runs client-side
+  // against the already viewport-bounded fetch; seeker pins aren't filtered
+  // by BHK/budget/etc, only shown/hidden via the layer toggle.
+  const visibleRentPins = useMemo(
+    () => (layers.rentPins ? rentPins.filter((p) => matchesRentPinFilters(filters, p)) : []),
+    [rentPins, layers.rentPins, filters]
+  );
+  const visibleListings = useMemo(
+    () => (layers.listings ? listings.filter((l) => matchesListingFilters(filters, l)) : []),
+    [listings, layers.listings, filters]
+  );
+  const visibleSeekerPins = useMemo(
+    () => (layers.seekerPins ? seekerPins : []),
+    [seekerPins, layers.seekerPins]
+  );
+
   return (
     <main className="relative h-dvh w-full overflow-hidden">
       <MapView
-        rentPins={rentPins}
-        listings={listings}
+        rentPins={visibleRentPins}
+        listings={visibleListings}
+        seekerPins={visibleSeekerPins}
+        flyTo={flyTo}
         onMapClick={(lat, lng) => {
           setDropLocation({ lat, lng });
           setDropFlow('choose');
         }}
         onRentPinClick={setSelectedPin}
         onListingClick={setSelectedListing}
+        onSeekerPinClick={setSelectedSeekerPin}
         onBoundsChange={handleBoundsChange}
       />
 
-      {/* Top bar: brand */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between p-4">
+      {/* Top bar: brand, search (spec 3.8), filters toggle (spec 3.9).
+          Right padding clears MapLibre's top-right zoom/geolocate controls. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-2 p-4 pr-16">
         <div className="pointer-events-auto rounded-full bg-white/90 px-4 py-2 shadow-md backdrop-blur">
           <span className="text-sm font-semibold tracking-tight text-stone-900">ggn.life</span>
         </div>
+        <SearchBar onSelect={(lat, lng) => setFlyTo({ lat, lng })} />
+        <button
+          onClick={() => setFiltersOpen(true)}
+          className="pointer-events-auto rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-stone-900 shadow-md backdrop-blur"
+        >
+          Filters
+        </button>
       </div>
 
       {/* Tap-to-drop hint */}
@@ -145,6 +204,16 @@ export default function HomePage() {
           Tap anywhere on the map to share, list, or search
         </p>
       </div>
+
+      {filtersOpen && (
+        <FilterPanel
+          layers={layers}
+          onLayersChange={setLayers}
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClose={() => setFiltersOpen(false)}
+        />
+      )}
 
       {dropLocation && dropFlow === 'choose' && (
         <DropChooser
@@ -186,6 +255,10 @@ export default function HomePage() {
 
       {selectedListing && (
         <ListingDetail listing={selectedListing} onClose={() => setSelectedListing(null)} />
+      )}
+
+      {selectedSeekerPin && (
+        <SeekerPinDetail pin={selectedSeekerPin} onClose={() => setSelectedSeekerPin(null)} />
       )}
 
       {/* Manage-link stand-in until email integration exists (spec Section 3.6) */}

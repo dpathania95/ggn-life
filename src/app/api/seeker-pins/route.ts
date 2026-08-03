@@ -14,11 +14,44 @@ import {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// GET /api/seeker-pins?minLng=&minLat=&maxLng=&maxLat=
+// Loads active seeker pins within the current map viewport via the
+// seeker_pins_in_bounds RPC — a visible/toggleable layer per spec Section
+// 3.9. The RPC excludes contact_email/manage_token_hash; this table has no
+// public SELECT policy for exactly that reason.
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const minLng = parseFloat(searchParams.get('minLng') ?? '');
+  const minLat = parseFloat(searchParams.get('minLat') ?? '');
+  const maxLng = parseFloat(searchParams.get('maxLng') ?? '');
+  const maxLat = parseFloat(searchParams.get('maxLat') ?? '');
+
+  if ([minLng, minLat, maxLng, maxLat].some(Number.isNaN)) {
+    return NextResponse.json(
+      { error: 'minLng, minLat, maxLng, maxLat are required query params' },
+      { status: 400 }
+    );
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc('seeker_pins_in_bounds', {
+    min_lng: minLng,
+    min_lat: minLat,
+    max_lng: maxLng,
+    max_lat: maxLat,
+  });
+
+  if (error) {
+    console.error('Failed to load seeker_pins:', JSON.stringify(error));
+    return NextResponse.json({ error: 'Failed to load seeker pins' }, { status: 500 });
+  }
+
+  return NextResponse.json({ seekerPins: data });
+}
+
 // POST /api/seeker-pins — create a seeker want-ad. Requires an email (used
 // only for match notifications and the manage link, never shown publicly),
-// rate limited to 1 per IP per day (spec Section 3.3/4). No GET route: seeker
-// pins aren't browsable on the map, only matched against by the (not yet
-// built) daily job — see spec Section 3.3/3.4/7.
+// rate limited to 1 per IP per day (spec Section 3.3/4).
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req.headers);
   const { success } = await seekerPinCreateLimiter.limit(ip);
