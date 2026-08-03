@@ -78,6 +78,18 @@ export interface Zone {
   name: string;
 }
 
+export interface AreaStatsByBhk {
+  bhk: RentBhk;
+  avgRent: number;
+  count: number;
+}
+
+export interface AreaStats {
+  zone: Zone;
+  totalPins: number;
+  byBhk: AreaStatsByBhk[];
+}
+
 export const GENDER_PREF_VALUES = ['male', 'female'] as const;
 export type GenderPref = (typeof GENDER_PREF_VALUES)[number];
 

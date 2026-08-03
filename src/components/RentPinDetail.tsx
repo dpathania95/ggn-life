@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Furnishing, RentBhk, RentPin } from '@/types/rental';
 
 const BHK_LABELS: Record<RentBhk, string> = {
@@ -18,9 +19,27 @@ const FURNISHING_LABELS: Record<Furnishing, string> = {
 interface RentPinDetailProps {
   pin: RentPin;
   onClose: () => void;
+  onReport: () => Promise<void>;
 }
 
-export default function RentPinDetail({ pin, onClose }: RentPinDetailProps) {
+export default function RentPinDetail({ pin, onClose, onReport }: RentPinDetailProps) {
+  const [reporting, setReporting] = useState(false);
+  const [reported, setReported] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleReport = async () => {
+    setError(null);
+    setReporting(true);
+    try {
+      await onReport();
+      setReported(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to report.');
+    } finally {
+      setReporting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 sm:inset-auto sm:right-4 sm:top-20 sm:w-80">
       <div className="rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
@@ -57,7 +76,22 @@ export default function RentPinDetail({ pin, onClose }: RentPinDetailProps) {
           )}
         </div>
 
-        {pin.description && <p className="text-sm text-stone-600">{pin.description}</p>}
+        {pin.description && <p className="mb-3 text-sm text-stone-600">{pin.description}</p>}
+
+        <div className="flex items-center justify-between border-t border-stone-100 pt-3">
+          {reported ? (
+            <p className="text-xs text-stone-500">Thanks — this has been reported.</p>
+          ) : (
+            <button
+              onClick={handleReport}
+              disabled={reporting}
+              className="text-xs text-stone-400 hover:text-red-600 disabled:opacity-50"
+            >
+              {reporting ? 'Reporting…' : 'Report (wrong info, spam, closed)'}
+            </button>
+          )}
+        </div>
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
       </div>
     </div>
   );

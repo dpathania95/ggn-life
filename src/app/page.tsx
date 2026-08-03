@@ -114,6 +114,19 @@ export default function HomePage() {
     closeDropFlow();
   };
 
+  const handleReportRentPin = async (pinId: string) => {
+    const res = await fetch(`/api/rent-pins/${pinId}/report`, { method: 'POST' });
+    if (!res.ok) {
+      const { error } = await res.json();
+      throw new Error(error ?? 'Failed to report');
+    }
+    const { rentPin } = await res.json();
+    if (rentPin.hidden) {
+      setRentPins((prev) => prev.filter((p) => p.id !== pinId));
+      setSelectedPin(null);
+    }
+  };
+
   const handleSubmitListing = async (input: Omit<NewListingInput, 'lat' | 'lng'>) => {
     if (!dropLocation) return;
     const payload: NewListingInput = { ...input, lat: dropLocation.lat, lng: dropLocation.lng };
@@ -251,7 +264,13 @@ export default function HomePage() {
         />
       )}
 
-      {selectedPin && <RentPinDetail pin={selectedPin} onClose={() => setSelectedPin(null)} />}
+      {selectedPin && (
+        <RentPinDetail
+          pin={selectedPin}
+          onClose={() => setSelectedPin(null)}
+          onReport={() => handleReportRentPin(selectedPin.id)}
+        />
+      )}
 
       {selectedListing && (
         <ListingDetail listing={selectedListing} onClose={() => setSelectedListing(null)} />

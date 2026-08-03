@@ -27,6 +27,14 @@ export const seekerPinCreateLimiter = new Ratelimit({
   prefix: 'ggnlife:seeker-pin-create',
 });
 
+// Lighter cap for reports — a cheap action, but still worth capping (spec
+// Section 4's community-reporting anti-fraud layer).
+export const reportLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(20, '1 h'),
+  prefix: 'ggnlife:report',
+});
+
 // Nominatim's usage policy caps requests at 1/second GLOBALLY, across all
 // callers of the shared free public API — not per-IP like the limiters
 // above (spec Section 3.8). Always call .limit('global') with this one.

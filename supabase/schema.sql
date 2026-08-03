@@ -174,6 +174,26 @@ as $$
   limit 500;
 $$;
 
+-- Atomic report increment — auto-hides at 3 reports (spec Section 4), same
+-- pattern as the discovery layer's retired increment_pin_column. Atomic so
+-- concurrent reports don't clobber each other (avoids read-then-write races).
+create or replace function increment_rent_pin_reports(pin_id uuid)
+returns rent_pins
+language plpgsql
+as $$
+declare
+  result rent_pins;
+begin
+  update rent_pins set reports = reports + 1 where id = pin_id returning * into result;
+
+  if result.reports >= 3 then
+    update rent_pins set hidden = true where id = pin_id returning * into result;
+  end if;
+
+  return result;
+end;
+$$;
+
 -- 5. Listing — zero-brokerage flat/room listings (spec Section 3.2)
 create table listings (
   id uuid primary key default gen_random_uuid(),
