@@ -353,6 +353,38 @@ as $$
   limit 500;
 $$;
 
+-- RPCs for the daily matching job (spec Section 3.3/3.4/7). Unlike the
+-- *_in_bounds RPCs above, these return FULL rows (including contact_email)
+-- since they're only ever called server-side, by the cron job, via the
+-- service-role client — never exposed as a public API response.
+create or replace function nearby_listings_for_seeker(seeker_id uuid, radius_meters double precision)
+returns setof listings
+language sql
+stable
+as $$
+  select l.*
+  from listings l
+  join seeker_pins s on s.id = seeker_id
+  where l.status = 'active'
+    and ST_DWithin(l.location, s.location, radius_meters)
+  order by l.location <-> s.location;
+$$;
+
+create or replace function nearby_seeker_pins_for_seeker(seeker_id uuid, radius_meters double precision)
+returns setof seeker_pins
+language sql
+stable
+as $$
+  select sp.*
+  from seeker_pins sp
+  join seeker_pins s on s.id = seeker_id
+  where sp.id <> seeker_id
+    and sp.status = 'active'
+    and sp.expires_at > now()
+    and ST_DWithin(sp.location, s.location, radius_meters)
+  order by sp.location <-> s.location;
+$$;
+
 -- 7. Match — records a seeker<->listing or seeker<->seeker pairing (spec Section 7)
 create table matches (
   id uuid primary key default gen_random_uuid(),
