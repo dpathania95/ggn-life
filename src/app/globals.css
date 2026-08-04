@@ -10,6 +10,24 @@
   --color-foreground: var(--foreground);
 }
 
+/* Brand scale — named "brand" rather than a literal color, since it's
+   already changed hue twice (rust → blue → violet). Base step (500) is
+   validated for categorical map-marker use alongside the marker palette in
+   MapView.tsx (dataviz skill: OKLab CVD + normal-vision separation,
+   all-pairs). Used here as the app's primary action/accent color. */
+@theme {
+  --color-brand-50: #eeedfb;
+  --color-brand-100: #dbd9f7;
+  --color-brand-200: #b7b3ef;
+  --color-brand-300: #938de7;
+  --color-brand-400: #766fdd;
+  --color-brand-500: #5851d3;
+  --color-brand-600: #4740b0;
+  --color-brand-700: #38318c;
+  --color-brand-800: #2b2669;
+  --color-brand-900: #1d1a46;
+}
+
 html,
 body {
   height: 100%;
