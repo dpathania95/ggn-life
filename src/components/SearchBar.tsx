@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
 
 interface GeocodeResult {
   label: string;
@@ -56,13 +57,14 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
   };
 
   return (
-    <div className="pointer-events-auto relative w-full max-w-xs">
+    <div className="pointer-events-auto relative w-[500px] max-w-md">
+      <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 z-1" />
       <input
         value={query}
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => results.length > 0 && setOpen(true)}
         placeholder="Search a place or society…"
-        className="w-full rounded-full bg-white/90 px-4 py-2 text-sm shadow-md backdrop-blur focus:outline-none"
+        className="w-full rounded-2xl border border-stone-200 bg-white/90 py-3 pl-11 pr-5 text-base shadow-md backdrop-blur focus:outline-none"
       />
       {open && results.length > 0 && (
         <ul className="absolute left-0 top-full mt-1 w-full overflow-hidden rounded-xl bg-white shadow-lg">
