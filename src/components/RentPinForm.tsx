@@ -95,7 +95,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
             value={rent}
             onChange={(e) => setRent(e.target.value)}
             placeholder="e.g. 35000"
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
         </div>
 
@@ -109,7 +109,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
                 onClick={() => setBhk(b)}
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   bhk === b
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-700 hover:border-stone-400'
                 }`}
               >
@@ -129,7 +129,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
                 onClick={() => setFurnishing(f)}
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   furnishing === f
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-700 hover:border-stone-400'
                 }`}
               >
@@ -141,7 +141,12 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
 
         <div className="mb-4 flex flex-wrap gap-4">
           <label className="flex items-center gap-1.5 text-sm text-stone-700">
-            <input type="checkbox" checked={gated} onChange={(e) => setGated(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={gated}
+              onChange={(e) => setGated(e.target.checked)}
+              className="accent-brand-600"
+            />
             Gated society
           </label>
           <label className="flex items-center gap-1.5 text-sm text-stone-700">
@@ -149,6 +154,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
               type="checkbox"
               checked={needParking}
               onChange={(e) => setNeedParking(e.target.checked)}
+              className="accent-brand-600"
             />
             Parking available
           </label>
@@ -164,7 +170,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
             value={floor}
             onChange={(e) => setFloor(e.target.value)}
             placeholder="e.g. 3"
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
         </div>
 
@@ -179,7 +185,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
             maxLength={500}
             rows={2}
             placeholder="e.g. Landlord lives on-site, society has a park"
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
           <p className="mt-1 text-right text-xs text-stone-400">{description.length}/500</p>
         </div>
@@ -189,7 +195,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-stone-900 py-2.5 text-sm font-medium text-white transition hover:bg-stone-800 disabled:opacity-50"
+          className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
           {submitting ? 'Sharing…' : 'Share anonymously'}
         </button>

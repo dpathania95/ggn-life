@@ -126,7 +126,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
                 onClick={() => setType(t)}
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   type === t
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-700 hover:border-stone-400'
                 }`}
               >
@@ -148,7 +148,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
               value={rent}
               onChange={(e) => setRent(e.target.value)}
               placeholder="e.g. 42000"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
           </div>
           <div>
@@ -162,7 +162,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
               value={deposit}
               onChange={(e) => setDeposit(e.target.value)}
               placeholder="e.g. 100000"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
           </div>
         </div>
@@ -177,7 +177,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
                 onClick={() => setBhk(b)}
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   bhk === b
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-700 hover:border-stone-400'
                 }`}
               >
@@ -197,7 +197,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
                 onClick={() => setFurnishing(f)}
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   furnishing === f
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-700 hover:border-stone-400'
                 }`}
               >
@@ -209,11 +209,21 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
 
         <div className="mb-4 flex flex-wrap gap-4">
           <label className="flex items-center gap-1.5 text-sm text-stone-700">
-            <input type="checkbox" checked={gated} onChange={(e) => setGated(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={gated}
+              onChange={(e) => setGated(e.target.checked)}
+              className="accent-brand-600"
+            />
             Gated society
           </label>
           <label className="flex items-center gap-1.5 text-sm text-stone-700">
-            <input type="checkbox" checked={parking} onChange={(e) => setParking(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={parking}
+              onChange={(e) => setParking(e.target.checked)}
+              className="accent-brand-600"
+            />
             Parking available
           </label>
         </div>
@@ -227,7 +237,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
             type="date"
             value={availableFrom}
             onChange={(e) => setAvailableFrom(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
         </div>
 
@@ -242,7 +252,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
             maxLength={500}
             rows={2}
             placeholder="e.g. 10 min walk to metro, vegetarian society"
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
           <p className="mt-1 text-right text-xs text-stone-400">{description.length}/500</p>
         </div>
@@ -257,7 +267,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
             value={contactEmail}
             onChange={(e) => setContactEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
           <p className="mt-1 text-xs text-stone-400">
             Never shown publicly — used only to notify you of matches and to manage this listing.
@@ -269,7 +279,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-stone-900 py-2.5 text-sm font-medium text-white transition hover:bg-stone-800 disabled:opacity-50"
+          className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
           {submitting ? 'Posting…' : 'Post listing'}
         </button>

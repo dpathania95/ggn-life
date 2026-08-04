@@ -28,7 +28,7 @@ export default function SeekerPinDetail({ pin, onClose }: SeekerPinDetailProps) 
     <div className="fixed inset-x-0 bottom-0 z-20 sm:inset-auto sm:right-4 sm:top-20 sm:w-80">
       <div className="rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
         <div className="mb-2 flex items-start justify-between">
-          <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-700">
+          <span className="rounded-full bg-pink-100 px-2.5 py-0.5 text-xs font-medium text-pink-700">
             Looking for {BHK_LABELS[pin.bhk]}
           </span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600" aria-label="Close">

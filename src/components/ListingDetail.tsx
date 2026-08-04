@@ -27,7 +27,7 @@ export default function ListingDetail({ listing, onClose }: ListingDetailProps) 
     <div className="fixed inset-x-0 bottom-0 z-20 sm:inset-auto sm:right-4 sm:top-20 sm:w-80">
       <div className="rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
         <div className="mb-2 flex items-start justify-between">
-          <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
             {listing.type === 'whole_flat' ? 'Whole flat' : 'Room (flatmate)'}
           </span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600" aria-label="Close">

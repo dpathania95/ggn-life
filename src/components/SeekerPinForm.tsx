@@ -151,7 +151,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
               value={budgetMin}
               onChange={(e) => setBudgetMin(e.target.value)}
               placeholder="e.g. 25000"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
           </div>
           <div>
@@ -165,7 +165,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
               value={budgetMax}
               onChange={(e) => setBudgetMax(e.target.value)}
               placeholder="e.g. 45000"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
           </div>
         </div>
@@ -180,7 +180,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
                 onClick={() => setBhk(b)}
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   bhk === b
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-700 hover:border-stone-400'
                 }`}
               >
@@ -205,7 +205,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
                 onClick={() => toggleZone(zone.id)}
                 className={`rounded-full border px-3 py-1 text-xs transition ${
                   preferredZoneIds.includes(zone.id)
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-800'
+                    ? 'border-brand-600 bg-brand-50 text-brand-800'
                     : 'border-stone-300 text-stone-600 hover:border-stone-400'
                 }`}
               >
@@ -224,7 +224,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
             type="date"
             value={moveInBy}
             onChange={(e) => setMoveInBy(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
         </div>
 
@@ -241,7 +241,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
                 onClick={() => setGenderPref((prev) => (prev === g ? null : g))}
                 className={`rounded-full border px-3 py-1 text-xs transition ${
                   genderPref === g
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-600 hover:border-stone-400'
                 }`}
               >
@@ -257,7 +257,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
                 onClick={() => setSmokingPref((prev) => (prev === s ? null : s))}
                 className={`rounded-full border px-3 py-1 text-xs transition ${
                   smokingPref === s
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-600 hover:border-stone-400'
                 }`}
               >
@@ -273,7 +273,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
                 onClick={() => setFoodPref((prev) => (prev === f ? null : f))}
                 className={`rounded-full border px-3 py-1 text-xs transition ${
                   foodPref === f
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-600 hover:border-stone-400'
                 }`}
               >
@@ -285,7 +285,12 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
 
         <div className="mb-4">
           <label className="flex items-center gap-1.5 text-sm text-stone-700">
-            <input type="checkbox" checked={petOwner} onChange={(e) => setPetOwner(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={petOwner}
+              onChange={(e) => setPetOwner(e.target.checked)}
+              className="accent-brand-600"
+            />
             I have a pet
           </label>
         </div>
@@ -300,7 +305,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
             value={contactEmail}
             onChange={(e) => setContactEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
           <p className="mt-1 text-xs text-stone-400">
             Never shown publicly — used only to send matches and to manage this search.
@@ -312,7 +317,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-stone-900 py-2.5 text-sm font-medium text-white transition hover:bg-stone-800 disabled:opacity-50"
+          className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
           {submitting ? 'Posting…' : 'Start matching'}
         </button>
