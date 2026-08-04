@@ -66,7 +66,7 @@ export default function FilterPanel({
           <button
             type="button"
             onClick={onClose}
-            className="text-stone-400 hover:text-stone-600"
+            className="text-stone-400 hover:text-stone-600 cursor-pointer"
             aria-label="Close"
           >
             ✕
@@ -81,6 +81,7 @@ export default function FilterPanel({
                 type="checkbox"
                 checked={layers.rentPins}
                 onChange={(e) => onLayersChange({ ...layers, rentPins: e.target.checked })}
+                className="accent-brand-600"
               />
               What people pay
             </label>
@@ -89,6 +90,7 @@ export default function FilterPanel({
                 type="checkbox"
                 checked={layers.listings}
                 onChange={(e) => onLayersChange({ ...layers, listings: e.target.checked })}
+                className="accent-brand-600"
               />
               Listings
             </label>
@@ -97,6 +99,7 @@ export default function FilterPanel({
                 type="checkbox"
                 checked={layers.seekerPins}
                 onChange={(e) => onLayersChange({ ...layers, seekerPins: e.target.checked })}
+                className="accent-brand-600"
               />
               Seekers
             </label>
@@ -115,7 +118,7 @@ export default function FilterPanel({
                 onClick={() => onFiltersChange({ ...filters, bhk: toggleInArray(filters.bhk, b) })}
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   filters.bhk.includes(b)
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-700 hover:border-stone-400'
                 }`}
               >
@@ -139,7 +142,7 @@ export default function FilterPanel({
                 onFiltersChange({ ...filters, minRent: e.target.value ? Number(e.target.value) : null })
               }
               placeholder="No min"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
           </div>
           <div>
@@ -155,7 +158,7 @@ export default function FilterPanel({
                 onFiltersChange({ ...filters, maxRent: e.target.value ? Number(e.target.value) : null })
               }
               placeholder="No max"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
           </div>
         </div>
@@ -172,7 +175,7 @@ export default function FilterPanel({
                 }
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   filters.furnishing.includes(f)
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-700 hover:border-stone-400'
                 }`}
               >
@@ -193,7 +196,7 @@ export default function FilterPanel({
                   onClick={() => onFiltersChange({ ...filters, gated: v })}
                   className={`rounded-full border px-3 py-1 text-xs capitalize transition ${
                     filters.gated === v
-                      ? 'border-stone-900 bg-stone-900 text-white'
+                      ? 'border-brand-600 bg-brand-600 text-white'
                       : 'border-stone-300 text-stone-700 hover:border-stone-400'
                   }`}
                 >
@@ -212,7 +215,7 @@ export default function FilterPanel({
                   onClick={() => onFiltersChange({ ...filters, parking: v })}
                   className={`rounded-full border px-3 py-1 text-xs capitalize transition ${
                     filters.parking === v
-                      ? 'border-stone-900 bg-stone-900 text-white'
+                      ? 'border-brand-600 bg-brand-600 text-white'
                       : 'border-stone-300 text-stone-700 hover:border-stone-400'
                   }`}
                 >
@@ -237,7 +240,7 @@ export default function FilterPanel({
                 }
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   filters.listingType.includes(t)
-                    ? 'border-stone-900 bg-stone-900 text-white'
+                    ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-stone-300 text-stone-700 hover:border-stone-400'
                 }`}
               >
@@ -259,7 +262,7 @@ export default function FilterPanel({
                 }
                 className={`rounded-full border px-3 py-1 text-xs transition ${
                   filters.zoneIds.includes(zone.id)
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-800'
+                    ? 'border-brand-600 bg-brand-50 text-brand-800'
                     : 'border-stone-300 text-stone-600 hover:border-stone-400'
                 }`}
               >
@@ -272,7 +275,7 @@ export default function FilterPanel({
         <button
           type="button"
           onClick={() => onFiltersChange(DEFAULT_FILTERS)}
-          className="w-full rounded-lg border border-stone-300 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-400"
+          className="w-full rounded-lg border border-brand-400 py-2.5 text-sm font-medium text-white transition bg-brand-500 cursor-pointer"
         >
           Reset filters
         </button>
