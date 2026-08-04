@@ -13,6 +13,19 @@ const GURGAON_CENTER: [number, number] = [77.0266, 28.4595];
 const GURGAON_DEFAULT_ZOOM = 12;
 const SEARCH_FLY_TO_ZOOM = 15;
 
+// Categorical marker palette — validated with the dataviz skill's
+// validate_palette.js (OKLab CVD + normal-vision separation, contrast vs
+// surface, --pairs all since any two marker types can sit side by side on
+// the map). MARKER_OUTLIER is a status color (not part of the categorical
+// set), deliberately distinct from all three so it never impersonates a
+// series — it replaces MARKER_RENT_PIN only on flagged rent pins, never
+// shown alongside it for the same marker.
+const MARKER_RENT_PIN = '#5851d3'; // violet — brand color, doubles as slot 1
+const MARKER_LISTING = '#2f8f5b'; // green — slot 2
+const MARKER_SEEKER_PIN = '#e87ba4'; // magenta — slot 3
+const MARKER_OUTLIER = '#c99a2e'; // gold — status/warning, reserved
+const MARKER_OUTLIER_BORDER = '#8f6c1c'; // darker gold, so the dashed ring reads against the fill
+
 interface MapViewProps {
   rentPins: RentPin[];
   listings: Listing[];
@@ -42,6 +55,16 @@ export default function MapView({
   const listingMarkersRef = useRef<Marker[]>([]);
   const seekerMarkersRef = useRef<Marker[]>([]);
 
+  // The map's 'click' listener is attached once below and must never see a
+  // stale closure — onMapClick now depends on activeFlow (armed entry-flow
+  // state), which changes after mount. Route through a ref that's kept
+  // current every render instead of re-running the mount effect (that would
+  // tear down and recreate the whole MapLibre instance on every click).
+  const onMapClickRef = useRef(onMapClick);
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
+
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -56,7 +79,7 @@ export default function MapView({
     map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }), 'top-right');
 
     map.on('click', (e) => {
-      onMapClick(e.lngLat.lat, e.lngLat.lng);
+      onMapClickRef.current(e.lngLat.lat, e.lngLat.lng);
     });
 
     const emitBounds = () => {
@@ -103,9 +126,9 @@ export default function MapView({
       el.style.width = '30px';
       el.style.height = '20px';
       el.style.borderRadius = '10px';
-      el.style.border = pin.is_outlier ? '2px dashed #b45309' : '2px solid white';
+      el.style.border = pin.is_outlier ? `2px dashed ${MARKER_OUTLIER_BORDER}` : '2px solid white';
       el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)';
-      el.style.background = pin.is_outlier ? '#f59e0b' : '#0f766e';
+      el.style.background = pin.is_outlier ? MARKER_OUTLIER : MARKER_RENT_PIN;
       el.style.color = 'white';
       el.style.fontSize = '9px';
       el.style.fontWeight = '600';
@@ -127,7 +150,7 @@ export default function MapView({
   }, [rentPins, onRentPinClick]);
 
   // Re-render listing markers whenever the listing list changes — visually
-  // distinct from rent pins (square vs pill, indigo vs teal) since a listing
+  // distinct from rent pins (square vs pill, green vs violet) since a listing
   // is an addressable property, not an anonymous data point (spec Section 3.1).
   useEffect(() => {
     const map = mapRef.current;
@@ -149,7 +172,7 @@ export default function MapView({
       el.style.borderRadius = '4px';
       el.style.border = '2px solid white';
       el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)';
-      el.style.background = '#4338ca';
+      el.style.background = MARKER_LISTING;
       el.style.color = 'white';
       el.style.fontSize = '9px';
       el.style.fontWeight = '600';
@@ -171,7 +194,7 @@ export default function MapView({
   }, [listings, onListingClick]);
 
   // Re-render seeker pin markers whenever the list changes — a third
-  // visually distinct style (hollow violet ring) since a seeker pin is a
+  // visually distinct style (hollow magenta ring) since a seeker pin is a
   // want-ad anchor point, not a data point or an addressable property
   // (spec Section 3.9's layer toggle).
   useEffect(() => {
@@ -190,7 +213,7 @@ export default function MapView({
       el.style.width = '26px';
       el.style.height = '26px';
       el.style.borderRadius = '50%';
-      el.style.border = '3px dashed #7c3aed';
+      el.style.border = `3px dashed ${MARKER_SEEKER_PIN}`;
       el.style.background = 'white';
       el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
       el.style.cursor = 'pointer';

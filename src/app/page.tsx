@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import DropChooser from '@/components/DropChooser';
 import RentPinForm from '@/components/RentPinForm';
 import RentPinDetail from '@/components/RentPinDetail';
 import ListingForm from '@/components/ListingForm';
@@ -11,6 +10,8 @@ import SeekerPinForm from '@/components/SeekerPinForm';
 import SeekerPinDetail from '@/components/SeekerPinDetail';
 import SearchBar from '@/components/SearchBar';
 import FilterPanel from '@/components/FilterPanel';
+import AreaStats from '@/components/AreaStats';
+import { Filter, Home, IndianRupee, Users } from 'lucide-react';
 import { DEFAULT_FILTERS, DEFAULT_LAYERS, matchesListingFilters, matchesRentPinFilters } from '@/lib/filterPins';
 import {
   Listing,
@@ -25,14 +26,23 @@ import {
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false });
 
 type Bounds = { minLng: number; minLat: number; maxLng: number; maxLat: number };
-type DropFlow = 'choose' | 'rent_pin' | 'listing' | 'seeker_pin';
+type EntryFlow = 'rent_pin' | 'listing' | 'seeker_pin';
+
+const ENTRY_FLOWS: { flow: EntryFlow; label: string; icon: typeof IndianRupee }[] = [
+  { flow: 'rent_pin', label: 'What I pay', icon: IndianRupee },
+  { flow: 'listing', label: 'List a flat', icon: Home },
+  { flow: 'seeker_pin', label: 'Find a flatmate', icon: Users },
+];
 
 export default function HomePage() {
   const [rentPins, setRentPins] = useState<RentPin[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [seekerPins, setSeekerPins] = useState<SeekerPin[]>([]);
   const [dropLocation, setDropLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [dropFlow, setDropFlow] = useState<DropFlow>('choose');
+  // Entry-point flow (spec Section 3.7, reworked): a flow must be armed via
+  // one of the three buttons below before a map tap does anything at all —
+  // no armed flow means tapping the map is a no-op.
+  const [activeFlow, setActiveFlow] = useState<EntryFlow | null>(null);
   const [selectedPin, setSelectedPin] = useState<RentPin | null>(null);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [selectedSeekerPin, setSelectedSeekerPin] = useState<SeekerPin | null>(null);
@@ -43,6 +53,7 @@ export default function HomePage() {
   const [layers, setLayers] = useState(DEFAULT_LAYERS);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [areaStatsOpen, setAreaStatsOpen] = useState(false);
 
   const loadRentPins = useCallback(async (b: Bounds) => {
     const params = new URLSearchParams({
@@ -92,9 +103,11 @@ export default function HomePage() {
     [loadRentPins, loadListings, loadSeekerPins]
   );
 
+  // Closes the open form and disarms the entry flow — the next map tap is a
+  // no-op again until a flow button is clicked.
   const closeDropFlow = () => {
     setDropLocation(null);
-    setDropFlow('choose');
+    setActiveFlow(null);
   };
 
   const handleSubmitRentPin = async (input: Omit<NewRentPinInput, 'lat' | 'lng'>) => {
@@ -187,8 +200,11 @@ export default function HomePage() {
         seekerPins={visibleSeekerPins}
         flyTo={flyTo}
         onMapClick={(lat, lng) => {
+          // No armed flow → tapping the map does nothing (spec change: the
+          // old tap-anywhere chooser is gone, flows are armed via the
+          // buttons below instead).
+          if (!activeFlow) return;
           setDropLocation({ lat, lng });
-          setDropFlow('choose');
         }}
         onRentPinClick={setSelectedPin}
         onListingClick={setSelectedListing}
@@ -196,27 +212,55 @@ export default function HomePage() {
         onBoundsChange={handleBoundsChange}
       />
 
-      {/* Top bar: brand, search (spec 3.8), filters toggle (spec 3.9).
-          Right padding clears MapLibre's top-right zoom/geolocate controls. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-2 p-4 pr-16">
-        <div className="pointer-events-auto rounded-full bg-white/90 px-4 py-2 shadow-md backdrop-blur">
-          <span className="text-sm font-semibold tracking-tight text-stone-900">ggn.life</span>
+      {/* Top bar: brand, search+filters grouped (spec 3.8/3.9), stats +
+          entry-flow buttons below that group and smaller. Right padding
+          clears MapLibre's top-right zoom/geolocate controls. */}
+      <div
+        className="pointer-events-auto absolute top-5 flex flex-col items-center gap-2 left-2/4"
+        style={{ transform: 'translateX(-50%)' }}
+      >
+        <div className="flex items-center gap-1.5 w-full">
+          <SearchBar onSelect={(lat, lng) => setFlyTo({ lat, lng })} />
+          <button
+            onClick={() => setFiltersOpen(true)}
+            className="flex items-center gap-1.5 rounded-2xl border border-stone-200 bg-white/90 px-4 py-3 text-sm font-medium text-stone-900 shadow-md backdrop-blur"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+          </button>
         </div>
-        <SearchBar onSelect={(lat, lng) => setFlyTo({ lat, lng })} />
-        <button
-          onClick={() => setFiltersOpen(true)}
-          className="pointer-events-auto rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-stone-900 shadow-md backdrop-blur"
-        >
-          Filters
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setAreaStatsOpen(true)}
+            className="rounded-full border border-stone-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-stone-900 shadow-md backdrop-blur"
+          >
+            Stats
+          </button>
+          {ENTRY_FLOWS.map(({ flow, label, icon: Icon }) => (
+            <button
+              key={flow}
+              onClick={() => setActiveFlow((prev) => (prev === flow ? null : flow))}
+              className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium shadow-md backdrop-blur transition ${
+                activeFlow === flow
+                  ? 'border-brand-600 bg-brand-600 text-white'
+                  : 'border-stone-200 bg-white/90 text-stone-900'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Tap-to-drop hint */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
-        <p className="pointer-events-auto rounded-full bg-stone-900/90 px-4 py-2 text-xs text-white shadow-md">
-          Tap anywhere on the map to share, list, or search
-        </p>
-      </div>
+      {/* Tap-to-drop hint — only shown once a flow is armed */}
+      {activeFlow && !dropLocation && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
+          <p className="pointer-events-auto rounded-full bg-stone-900/90 px-4 py-2 text-xs text-white shadow-md">
+            Tap anywhere on the map to drop your pin
+          </p>
+        </div>
+      )}
 
       {filtersOpen && (
         <FilterPanel
@@ -228,16 +272,9 @@ export default function HomePage() {
         />
       )}
 
-      {dropLocation && dropFlow === 'choose' && (
-        <DropChooser
-          onCancel={closeDropFlow}
-          onChooseRentPin={() => setDropFlow('rent_pin')}
-          onChooseListing={() => setDropFlow('listing')}
-          onChooseSeekerPin={() => setDropFlow('seeker_pin')}
-        />
-      )}
+      {areaStatsOpen && <AreaStats onClose={() => setAreaStatsOpen(false)} />}
 
-      {dropLocation && dropFlow === 'rent_pin' && (
+      {dropLocation && activeFlow === 'rent_pin' && (
         <RentPinForm
           lat={dropLocation.lat}
           lng={dropLocation.lng}
@@ -246,7 +283,7 @@ export default function HomePage() {
         />
       )}
 
-      {dropLocation && dropFlow === 'listing' && (
+      {dropLocation && activeFlow === 'listing' && (
         <ListingForm
           lat={dropLocation.lat}
           lng={dropLocation.lng}
@@ -255,7 +292,7 @@ export default function HomePage() {
         />
       )}
 
-      {dropLocation && dropFlow === 'seeker_pin' && (
+      {dropLocation && activeFlow === 'seeker_pin' && (
         <SeekerPinForm
           lat={dropLocation.lat}
           lng={dropLocation.lng}
