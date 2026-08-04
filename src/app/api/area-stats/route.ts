@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { RENT_BHK_VALUES } from '@/types/rental';
+import { RENT_BHK_VALUES, RentBhk } from '@/types/rental';
 
 // GET /api/area-stats?zoneId=<uuid>
 // Average rent by BHK for a zone, computed from anonymous rent pin data
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     if (matching.length === 0) return null;
     const avgRent = Math.round(matching.reduce((sum, p) => sum + p.rent, 0) / matching.length);
     return { bhk, avgRent, count: matching.length };
-  }).filter((b): b is { bhk: string; avgRent: number; count: number } => b !== null);
+  }).filter((b): b is { bhk: RentBhk; avgRent: number; count: number } => b !== null);
 
   return NextResponse.json({ zone, totalPins: rows.length, byBhk });
 }
