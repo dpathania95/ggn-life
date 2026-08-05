@@ -36,6 +36,13 @@ interface ListingFormProps {
   onSubmit: (input: Omit<NewListingInput, 'lat' | 'lng'>) => Promise<void>;
 }
 
+interface FieldErrors {
+  rent?: string;
+  deposit?: string;
+  availableFrom?: string;
+  contactEmail?: string;
+}
+
 export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFormProps) {
   const [type, setType] = useState<ListingType>('whole_flat');
   const [rent, setRent] = useState('');
@@ -48,6 +55,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
   const [description, setDescription] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,22 +64,23 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
 
     const rentValue = Number(rent);
     const depositValue = Number(deposit);
+    const errors: FieldErrors = {};
+
     if (!rent || !Number.isFinite(rentValue) || rentValue <= 0) {
-      setError('Enter a valid monthly rent.');
-      return;
+      errors.rent = 'Enter a valid monthly rent.';
     }
     if (!deposit || !Number.isFinite(depositValue) || depositValue < 0) {
-      setError('Enter a valid deposit amount.');
-      return;
+      errors.deposit = 'Enter a valid deposit amount.';
     }
     if (!availableFrom) {
-      setError('Pick an availability date.');
-      return;
+      errors.availableFrom = 'Pick an availability date.';
     }
     if (!contactEmail.trim() || !contactEmail.includes('@')) {
-      setError('A valid email is required — used only for match notifications, never shown publicly.');
-      return;
+      errors.contactEmail = 'A valid email is required — used only for match notifications, never shown publicly.';
     }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     setSubmitting(true);
     try {
@@ -113,7 +122,7 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
         </div>
 
         <p className="mb-4 text-xs text-stone-500">
-          {lat.toFixed(5)}, {lng.toFixed(5)} — exact location, not rounded
+          Selected - {lat.toFixed(5)}, {lng.toFixed(5)}
         </p>
 
         <div className="mb-4">
@@ -146,10 +155,14 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
               type="number"
               min={1}
               value={rent}
-              onChange={(e) => setRent(e.target.value)}
+              onChange={(e) => {
+                setRent(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, rent: undefined }));
+              }}
               placeholder="e.g. 42000"
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
+            {fieldErrors.rent && <p className="mt-1 text-xs text-red-600">{fieldErrors.rent}</p>}
           </div>
           <div>
             <label htmlFor="deposit" className="mb-1.5 block text-sm font-medium text-stone-700">
@@ -160,10 +173,14 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
               type="number"
               min={0}
               value={deposit}
-              onChange={(e) => setDeposit(e.target.value)}
+              onChange={(e) => {
+                setDeposit(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, deposit: undefined }));
+              }}
               placeholder="e.g. 100000"
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
+            {fieldErrors.deposit && <p className="mt-1 text-xs text-red-600">{fieldErrors.deposit}</p>}
           </div>
         </div>
 
@@ -236,9 +253,15 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
             id="available_from"
             type="date"
             value={availableFrom}
-            onChange={(e) => setAvailableFrom(e.target.value)}
+            onChange={(e) => {
+              setAvailableFrom(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, availableFrom: undefined }));
+            }}
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
+          {fieldErrors.availableFrom && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.availableFrom}</p>
+          )}
         </div>
 
         <div className="mb-4">
@@ -265,13 +288,20 @@ export default function ListingForm({ lat, lng, onCancel, onSubmit }: ListingFor
             id="contact_email"
             type="email"
             value={contactEmail}
-            onChange={(e) => setContactEmail(e.target.value)}
+            onChange={(e) => {
+              setContactEmail(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, contactEmail: undefined }));
+            }}
             placeholder="you@example.com"
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
-          <p className="mt-1 text-xs text-stone-400">
-            Never shown publicly — used only to notify you of matches and to manage this listing.
-          </p>
+          {fieldErrors.contactEmail ? (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.contactEmail}</p>
+          ) : (
+            <p className="mt-1 text-xs text-stone-400">
+              Never shown publicly — used only to notify you of matches and to manage this listing.
+            </p>
+          )}
         </div>
 
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
