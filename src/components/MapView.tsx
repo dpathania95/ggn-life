@@ -206,9 +206,10 @@ export default function MapView({
 
     seekerPins.forEach((pin) => {
       const el = document.createElement('button');
+      const seekingLabel = pin.seeker_type === 'full_flat' && pin.bhk ? `${pin.bhk} BHK` : 'flatmate';
       el.setAttribute(
         'aria-label',
-        `Seeking: ₹${pin.budget_min.toLocaleString('en-IN')}–${pin.budget_max.toLocaleString('en-IN')}/mo · ${pin.bhk} BHK`
+        `Seeking: ₹${pin.budget_min.toLocaleString('en-IN')}–${pin.budget_max.toLocaleString('en-IN')}/mo · ${seekingLabel}`
       );
       el.style.width = '26px';
       el.style.height = '26px';

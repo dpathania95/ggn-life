@@ -3,13 +3,16 @@
 import { useEffect, useState } from 'react';
 import {
   FOOD_PREF_VALUES,
+  FURNISHING_VALUES,
   GENDER_PREF_VALUES,
   RENT_BHK_VALUES,
   SMOKING_PREF_VALUES,
   FoodPref,
+  Furnishing,
   GenderPref,
   NewSeekerPinInput,
   RentBhk,
+  SeekerType,
   SmokingPref,
   Zone,
 } from '@/types/rental';
@@ -19,6 +22,12 @@ const BHK_LABELS: Record<RentBhk, string> = {
   '2': '2 BHK',
   '3': '3 BHK',
   '4_plus': '4+ BHK',
+};
+
+const FURNISHING_LABELS: Record<Furnishing, string> = {
+  unfurnished: 'Unfurnished',
+  semi: 'Semi-furnished',
+  fully: 'Fully furnished',
 };
 
 const GENDER_PREF_LABELS: Record<GenderPref, string> = {
@@ -37,6 +46,7 @@ const FOOD_PREF_LABELS: Record<FoodPref, string> = {
 };
 
 interface SeekerPinFormProps {
+  seekerType: SeekerType;
   lat: number;
   lng: number;
   onCancel: () => void;
@@ -46,16 +56,21 @@ interface SeekerPinFormProps {
 interface FieldErrors {
   budgetMin?: string;
   budgetMax?: string;
+  bhk?: string;
   preferredZoneIds?: string;
   moveInBy?: string;
   contactEmail?: string;
 }
 
-export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPinFormProps) {
+export default function SeekerPinForm({ seekerType, lat, lng, onCancel, onSubmit }: SeekerPinFormProps) {
+  const isFullFlat = seekerType === 'full_flat';
   const [zones, setZones] = useState<Zone[]>([]);
   const [budgetMin, setBudgetMin] = useState('');
   const [budgetMax, setBudgetMax] = useState('');
-  const [bhk, setBhk] = useState<RentBhk>('2');
+  const [bhk, setBhk] = useState<RentBhk | null>(null);
+  const [furnishingPref, setFurnishingPref] = useState<Furnishing | null>(null);
+  const [parkingPref, setParkingPref] = useState<boolean | null>(null);
+  const [gatedPref, setGatedPref] = useState<boolean | null>(null);
   const [preferredZoneIds, setPreferredZoneIds] = useState<string[]>([]);
   const [moveInBy, setMoveInBy] = useState('');
   const [genderPref, setGenderPref] = useState<GenderPref | null>(null);
@@ -93,6 +108,9 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
     if (!budgetMax || !Number.isFinite(budgetMaxValue) || budgetMaxValue < budgetMinValue) {
       errors.budgetMax = 'Max budget must be at least the min budget.';
     }
+    if (isFullFlat && !bhk) {
+      errors.bhk = 'Pick the BHK you need.';
+    }
     if (preferredZoneIds.length === 0) {
       errors.preferredZoneIds = 'Pick at least one preferred area.';
     }
@@ -109,15 +127,19 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
     setSubmitting(true);
     try {
       await onSubmit({
+        seeker_type: seekerType,
         budget_min: budgetMinValue,
         budget_max: budgetMaxValue,
-        bhk,
+        bhk: isFullFlat ? bhk : null,
+        furnishing_pref: isFullFlat ? furnishingPref : null,
+        parking_pref: isFullFlat ? parkingPref : null,
+        gated_pref: isFullFlat ? gatedPref : null,
         preferred_zone_ids: preferredZoneIds,
         move_in_by: moveInBy,
-        gender_pref: genderPref,
-        smoking_pref: smokingPref,
-        food_pref: foodPref,
-        pet_owner: petOwner,
+        gender_pref: isFullFlat ? null : genderPref,
+        smoking_pref: isFullFlat ? null : smokingPref,
+        food_pref: isFullFlat ? null : foodPref,
+        pet_owner: isFullFlat ? null : petOwner,
         contact_email: contactEmail.trim(),
       });
     } catch (err) {
@@ -134,7 +156,9 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-stone-900">Find a flat or flatmate</h2>
+          <h2 className="text-lg font-semibold text-stone-900">
+            {isFullFlat ? 'Find a full flat' : 'Find a flatmate'}
+          </h2>
           <button
             type="button"
             onClick={onCancel}
@@ -188,25 +212,76 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
           </div>
         </div>
 
-        <div className="mb-4">
-          <label className="mb-1.5 block text-sm font-medium text-stone-700">BHK needed</label>
-          <div className="flex flex-wrap gap-2">
-            {RENT_BHK_VALUES.map((b) => (
-              <button
-                type="button"
-                key={b}
-                onClick={() => setBhk(b)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                  bhk === b
-                    ? 'border-brand-600 bg-brand-600 text-white'
-                    : 'border-stone-300 text-stone-700 hover:border-stone-400'
-                }`}
-              >
-                {BHK_LABELS[b]}
-              </button>
-            ))}
-          </div>
-        </div>
+        {isFullFlat && (
+          <>
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-medium text-stone-700">BHK needed</label>
+              <div className="flex flex-wrap gap-2">
+                {RENT_BHK_VALUES.map((b) => (
+                  <button
+                    type="button"
+                    key={b}
+                    onClick={() => {
+                      setBhk(b);
+                      setFieldErrors((prev) => ({ ...prev, bhk: undefined }));
+                    }}
+                    className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                      bhk === b
+                        ? 'border-brand-600 bg-brand-600 text-white'
+                        : 'border-stone-300 text-stone-700 hover:border-stone-400'
+                    }`}
+                  >
+                    {BHK_LABELS[b]}
+                  </button>
+                ))}
+              </div>
+              {fieldErrors.bhk && <p className="mt-1 text-xs text-red-600">{fieldErrors.bhk}</p>}
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-medium text-stone-700">
+                Furnishing preference <span className="text-stone-400">(optional)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {FURNISHING_VALUES.map((f) => (
+                  <button
+                    type="button"
+                    key={f}
+                    onClick={() => setFurnishingPref((prev) => (prev === f ? null : f))}
+                    className={`rounded-full border px-3 py-1 text-xs transition ${
+                      furnishingPref === f
+                        ? 'border-brand-600 bg-brand-600 text-white'
+                        : 'border-stone-300 text-stone-600 hover:border-stone-400'
+                    }`}
+                  >
+                    {FURNISHING_LABELS[f]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-4 flex flex-wrap gap-4">
+              <label className="flex items-center gap-1.5 text-sm text-stone-700">
+                <input
+                  type="checkbox"
+                  checked={parkingPref === true}
+                  onChange={(e) => setParkingPref(e.target.checked ? true : null)}
+                  className="accent-brand-600"
+                />
+                Need parking
+              </label>
+              <label className="flex items-center gap-1.5 text-sm text-stone-700">
+                <input
+                  type="checkbox"
+                  checked={gatedPref === true}
+                  onChange={(e) => setGatedPref(e.target.checked ? true : null)}
+                  className="accent-brand-600"
+                />
+                Prefer gated society
+              </label>
+            </div>
+          </>
+        )}
 
         <div className="mb-4">
           <label className="mb-1.5 block text-sm font-medium text-stone-700">
@@ -253,72 +328,77 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
           {fieldErrors.moveInBy && <p className="mt-1 text-xs text-red-600">{fieldErrors.moveInBy}</p>}
         </div>
 
-        <div className="mb-4">
-          <label className="mb-1.5 block text-sm font-medium text-stone-700">
-            Lifestyle preferences <span className="text-stone-400">(optional, affects ranking not eligibility)</span>
-          </label>
+        {!isFullFlat && (
+          <>
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-medium text-stone-700">
+                Lifestyle preferences{' '}
+                <span className="text-stone-400">(optional, affects ranking not eligibility)</span>
+              </label>
 
-          <div className="mb-2 flex flex-wrap gap-2">
-            {GENDER_PREF_VALUES.map((g) => (
-              <button
-                type="button"
-                key={g}
-                onClick={() => setGenderPref((prev) => (prev === g ? null : g))}
-                className={`rounded-full border px-3 py-1 text-xs transition ${
-                  genderPref === g
-                    ? 'border-brand-600 bg-brand-600 text-white'
-                    : 'border-stone-300 text-stone-600 hover:border-stone-400'
-                }`}
-              >
-                {GENDER_PREF_LABELS[g]} flatmate
-              </button>
-            ))}
-          </div>
-          <div className="mb-2 flex flex-wrap gap-2">
-            {SMOKING_PREF_VALUES.map((s) => (
-              <button
-                type="button"
-                key={s}
-                onClick={() => setSmokingPref((prev) => (prev === s ? null : s))}
-                className={`rounded-full border px-3 py-1 text-xs transition ${
-                  smokingPref === s
-                    ? 'border-brand-600 bg-brand-600 text-white'
-                    : 'border-stone-300 text-stone-600 hover:border-stone-400'
-                }`}
-              >
-                {SMOKING_PREF_LABELS[s]}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {FOOD_PREF_VALUES.map((f) => (
-              <button
-                type="button"
-                key={f}
-                onClick={() => setFoodPref((prev) => (prev === f ? null : f))}
-                className={`rounded-full border px-3 py-1 text-xs transition ${
-                  foodPref === f
-                    ? 'border-brand-600 bg-brand-600 text-white'
-                    : 'border-stone-300 text-stone-600 hover:border-stone-400'
-                }`}
-              >
-                {FOOD_PREF_LABELS[f]}
-              </button>
-            ))}
-          </div>
-        </div>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {GENDER_PREF_VALUES.map((g) => (
+                  <button
+                    type="button"
+                    key={g}
+                    onClick={() => setGenderPref((prev) => (prev === g ? null : g))}
+                    className={`rounded-full border px-3 py-1 text-xs transition ${
+                      genderPref === g
+                        ? 'border-brand-600 bg-brand-600 text-white'
+                        : 'border-stone-300 text-stone-600 hover:border-stone-400'
+                    }`}
+                  >
+                    {GENDER_PREF_LABELS[g]} flatmate
+                  </button>
+                ))}
+              </div>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {SMOKING_PREF_VALUES.map((s) => (
+                  <button
+                    type="button"
+                    key={s}
+                    onClick={() => setSmokingPref((prev) => (prev === s ? null : s))}
+                    className={`rounded-full border px-3 py-1 text-xs transition ${
+                      smokingPref === s
+                        ? 'border-brand-600 bg-brand-600 text-white'
+                        : 'border-stone-300 text-stone-600 hover:border-stone-400'
+                    }`}
+                  >
+                    {SMOKING_PREF_LABELS[s]}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {FOOD_PREF_VALUES.map((f) => (
+                  <button
+                    type="button"
+                    key={f}
+                    onClick={() => setFoodPref((prev) => (prev === f ? null : f))}
+                    className={`rounded-full border px-3 py-1 text-xs transition ${
+                      foodPref === f
+                        ? 'border-brand-600 bg-brand-600 text-white'
+                        : 'border-stone-300 text-stone-600 hover:border-stone-400'
+                    }`}
+                  >
+                    {FOOD_PREF_LABELS[f]}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <div className="mb-4">
-          <label className="flex items-center gap-1.5 text-sm text-stone-700">
-            <input
-              type="checkbox"
-              checked={petOwner}
-              onChange={(e) => setPetOwner(e.target.checked)}
-              className="accent-brand-600"
-            />
-            I have a pet
-          </label>
-        </div>
+            <div className="mb-4">
+              <label className="flex items-center gap-1.5 text-sm text-stone-700">
+                <input
+                  type="checkbox"
+                  checked={petOwner}
+                  onChange={(e) => setPetOwner(e.target.checked)}
+                  className="accent-brand-600"
+                />
+                I have a pet
+              </label>
+            </div>
+          </>
+        )}
 
         <div className="mb-5">
           <label htmlFor="contact_email" className="mb-1.5 block text-sm font-medium text-stone-700">

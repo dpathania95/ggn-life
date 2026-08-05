@@ -8,6 +8,7 @@ import ListingForm from '@/components/ListingForm';
 import ListingDetail from '@/components/ListingDetail';
 import SeekerPinForm from '@/components/SeekerPinForm';
 import SeekerPinDetail from '@/components/SeekerPinDetail';
+import SeekerTypeChooser from '@/components/SeekerTypeChooser';
 import SearchBar from '@/components/SearchBar';
 import FilterPanel from '@/components/FilterPanel';
 import AreaStats from '@/components/AreaStats';
@@ -20,6 +21,7 @@ import {
   NewSeekerPinInput,
   RentPin,
   SeekerPin,
+  SeekerType,
 } from '@/types/rental';
 
 // MapLibre touches window/DOM APIs — must be client-only, no SSR.
@@ -31,7 +33,7 @@ type EntryFlow = 'rent_pin' | 'listing' | 'seeker_pin';
 const ENTRY_FLOWS: { flow: EntryFlow; label: string; icon: typeof IndianRupee }[] = [
   { flow: 'rent_pin', label: 'What I pay', icon: IndianRupee },
   { flow: 'listing', label: 'List a flat', icon: Home },
-  { flow: 'seeker_pin', label: 'Find a flatmate', icon: Users },
+  { flow: 'seeker_pin', label: 'Find a place', icon: Users },
 ];
 
 export default function HomePage() {
@@ -43,6 +45,9 @@ export default function HomePage() {
   // one of the three buttons below before a map tap does anything at all —
   // no armed flow means tapping the map is a no-op.
   const [activeFlow, setActiveFlow] = useState<EntryFlow | null>(null);
+  // Second branching step for seeker pins only (spec Section 3.3/3.7),
+  // shown after the map tap — "Full flat, or a flatmate?"
+  const [seekerType, setSeekerType] = useState<SeekerType | null>(null);
   const [selectedPin, setSelectedPin] = useState<RentPin | null>(null);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [selectedSeekerPin, setSelectedSeekerPin] = useState<SeekerPin | null>(null);
@@ -108,6 +113,7 @@ export default function HomePage() {
   const closeDropFlow = () => {
     setDropLocation(null);
     setActiveFlow(null);
+    setSeekerType(null);
   };
 
   const handleSubmitRentPin = async (input: Omit<NewRentPinInput, 'lat' | 'lng'>) => {
@@ -239,7 +245,15 @@ export default function HomePage() {
           {ENTRY_FLOWS.map(({ flow, label, icon: Icon }) => (
             <button
               key={flow}
-              onClick={() => setActiveFlow((prev) => (prev === flow ? null : flow))}
+              onClick={() => {
+                // Switching flows via these buttons (not Cancel/✕) must
+                // also clear any drop-in-progress state — otherwise a
+                // stale dropLocation/seekerType from a previous flow skips
+                // tap-to-drop (or the seeker sub-type chooser) entirely.
+                setActiveFlow((prev) => (prev === flow ? null : flow));
+                setDropLocation(null);
+                setSeekerType(null);
+              }}
               className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium shadow-md backdrop-blur transition ${
                 activeFlow === flow
                   ? 'border-brand-600 bg-brand-600 text-white'
@@ -292,8 +306,13 @@ export default function HomePage() {
         />
       )}
 
-      {dropLocation && activeFlow === 'seeker_pin' && (
+      {dropLocation && activeFlow === 'seeker_pin' && !seekerType && (
+        <SeekerTypeChooser onSelect={setSeekerType} onCancel={closeDropFlow} />
+      )}
+
+      {dropLocation && activeFlow === 'seeker_pin' && seekerType && (
         <SeekerPinForm
+          seekerType={seekerType}
           lat={dropLocation.lat}
           lng={dropLocation.lng}
           onCancel={closeDropFlow}

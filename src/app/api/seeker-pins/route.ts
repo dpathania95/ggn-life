@@ -6,9 +6,11 @@ import { roundCoordinate } from '@/lib/geo';
 import { isInGurgaonBounds } from '@/lib/rentalConstants';
 import {
   FOOD_PREF_VALUES,
+  FURNISHING_VALUES,
   GENDER_PREF_VALUES,
   NewSeekerPinInput,
   RENT_BHK_VALUES,
+  SEEKER_TYPE_VALUES,
   SMOKING_PREF_VALUES,
 } from '@/types/rental';
 
@@ -71,9 +73,13 @@ export async function POST(req: NextRequest) {
   }
 
   const {
+    seeker_type,
     budget_min,
     budget_max,
     bhk,
+    furnishing_pref,
+    parking_pref,
+    gated_pref,
     preferred_zone_ids,
     move_in_by,
     gender_pref,
@@ -86,6 +92,11 @@ export async function POST(req: NextRequest) {
   } = body;
 
   // Server-side validation — never trust the client, especially with no auth layer.
+  if (!SEEKER_TYPE_VALUES.includes(seeker_type)) {
+    return NextResponse.json({ error: 'Invalid seeker_type' }, { status: 400 });
+  }
+  const isFullFlat = seeker_type === 'full_flat';
+
   if (typeof budget_min !== 'number' || !Number.isFinite(budget_min) || budget_min <= 0) {
     return NextResponse.json({ error: 'budget_min must be a positive number' }, { status: 400 });
   }
@@ -95,8 +106,17 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (!RENT_BHK_VALUES.includes(bhk)) {
-    return NextResponse.json({ error: 'Invalid bhk' }, { status: 400 });
+  if (isFullFlat && (bhk == null || !RENT_BHK_VALUES.includes(bhk))) {
+    return NextResponse.json({ error: 'bhk is required for full_flat seeker pins' }, { status: 400 });
+  }
+  if (isFullFlat && furnishing_pref != null && !FURNISHING_VALUES.includes(furnishing_pref)) {
+    return NextResponse.json({ error: 'Invalid furnishing_pref' }, { status: 400 });
+  }
+  if (isFullFlat && parking_pref != null && typeof parking_pref !== 'boolean') {
+    return NextResponse.json({ error: 'parking_pref must be a boolean' }, { status: 400 });
+  }
+  if (isFullFlat && gated_pref != null && typeof gated_pref !== 'boolean') {
+    return NextResponse.json({ error: 'gated_pref must be a boolean' }, { status: 400 });
   }
   if (!Array.isArray(preferred_zone_ids) || preferred_zone_ids.length === 0) {
     return NextResponse.json({ error: 'preferred_zone_ids must have at least one zone' }, { status: 400 });
@@ -110,16 +130,16 @@ export async function POST(req: NextRequest) {
   if (moveInByDate < today) {
     return NextResponse.json({ error: 'move_in_by cannot be in the past' }, { status: 400 });
   }
-  if (gender_pref != null && !GENDER_PREF_VALUES.includes(gender_pref)) {
+  if (!isFullFlat && gender_pref != null && !GENDER_PREF_VALUES.includes(gender_pref)) {
     return NextResponse.json({ error: 'Invalid gender_pref' }, { status: 400 });
   }
-  if (smoking_pref != null && !SMOKING_PREF_VALUES.includes(smoking_pref)) {
+  if (!isFullFlat && smoking_pref != null && !SMOKING_PREF_VALUES.includes(smoking_pref)) {
     return NextResponse.json({ error: 'Invalid smoking_pref' }, { status: 400 });
   }
-  if (food_pref != null && !FOOD_PREF_VALUES.includes(food_pref)) {
+  if (!isFullFlat && food_pref != null && !FOOD_PREF_VALUES.includes(food_pref)) {
     return NextResponse.json({ error: 'Invalid food_pref' }, { status: 400 });
   }
-  if (typeof pet_owner !== 'boolean') {
+  if (!isFullFlat && pet_owner != null && typeof pet_owner !== 'boolean') {
     return NextResponse.json({ error: 'pet_owner must be a boolean' }, { status: 400 });
   }
   if (typeof contact_email !== 'string' || !EMAIL_PATTERN.test(contact_email)) {
@@ -160,15 +180,19 @@ export async function POST(req: NextRequest) {
   const { data: inserted, error: insertError } = await supabase
     .from('seeker_pins')
     .insert({
+      seeker_type,
       budget_min,
       budget_max,
-      bhk,
+      bhk: isFullFlat ? bhk : null,
+      furnishing_pref: isFullFlat ? (furnishing_pref ?? null) : null,
+      parking_pref: isFullFlat ? (parking_pref ?? null) : null,
+      gated_pref: isFullFlat ? (gated_pref ?? null) : null,
       preferred_zone_ids: uniqueZoneIds,
       move_in_by,
-      gender_pref: gender_pref ?? null,
-      smoking_pref: smoking_pref ?? null,
-      food_pref: food_pref ?? null,
-      pet_owner,
+      gender_pref: !isFullFlat ? (gender_pref ?? null) : null,
+      smoking_pref: !isFullFlat ? (smoking_pref ?? null) : null,
+      food_pref: !isFullFlat ? (food_pref ?? null) : null,
+      pet_owner: !isFullFlat ? (pet_owner ?? null) : null,
       contact_email: contact_email.trim(),
       manage_token_hash: tokenHash,
       lat: roundedLat,
@@ -176,7 +200,7 @@ export async function POST(req: NextRequest) {
       ip_hash: hashIp(ip),
     })
     .select(
-      'id, budget_min, budget_max, bhk, preferred_zone_ids, move_in_by, gender_pref, smoking_pref, food_pref, pet_owner, lat, lng, zone_id, status, expires_at, created_at'
+      'id, seeker_type, budget_min, budget_max, bhk, furnishing_pref, parking_pref, gated_pref, preferred_zone_ids, move_in_by, gender_pref, smoking_pref, food_pref, pet_owner, lat, lng, zone_id, status, expires_at, created_at'
     )
     .single();
 

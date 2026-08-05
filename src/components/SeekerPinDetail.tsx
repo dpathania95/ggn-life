@@ -1,12 +1,18 @@
 'use client';
 
-import { RentBhk, SeekerPin } from '@/types/rental';
+import { Furnishing, RentBhk, SeekerPin } from '@/types/rental';
 
 const BHK_LABELS: Record<RentBhk, string> = {
   '1': '1 BHK',
   '2': '2 BHK',
   '3': '3 BHK',
   '4_plus': '4+ BHK',
+};
+
+const FURNISHING_LABELS: Record<Furnishing, string> = {
+  unfurnished: 'Unfurnished',
+  semi: 'Semi-furnished',
+  fully: 'Fully furnished',
 };
 
 interface SeekerPinDetailProps {
@@ -18,18 +24,25 @@ interface SeekerPinDetailProps {
 // Contact info is never included — only released to a matched party
 // (spec Section 3.2/3.3).
 export default function SeekerPinDetail({ pin, onClose }: SeekerPinDetailProps) {
+  const isFullFlat = pin.seeker_type === 'full_flat';
   const badges: string[] = [];
-  if (pin.gender_pref) badges.push(`${pin.gender_pref === 'male' ? 'Male' : 'Female'} flatmate ok`);
-  if (pin.smoking_pref) badges.push(pin.smoking_pref === 'smoker' ? 'Smoker' : 'Non-smoker');
-  if (pin.food_pref) badges.push(pin.food_pref === 'veg' ? 'Veg' : 'Non-veg');
-  if (pin.pet_owner) badges.push('Has a pet');
+  if (isFullFlat) {
+    if (pin.furnishing_pref) badges.push(FURNISHING_LABELS[pin.furnishing_pref]);
+    if (pin.parking_pref) badges.push('Needs parking');
+    if (pin.gated_pref) badges.push('Prefers gated society');
+  } else {
+    if (pin.gender_pref) badges.push(`${pin.gender_pref === 'male' ? 'Male' : 'Female'} flatmate ok`);
+    if (pin.smoking_pref) badges.push(pin.smoking_pref === 'smoker' ? 'Smoker' : 'Non-smoker');
+    if (pin.food_pref) badges.push(pin.food_pref === 'veg' ? 'Veg' : 'Non-veg');
+    if (pin.pet_owner) badges.push('Has a pet');
+  }
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 sm:inset-auto sm:right-4 sm:top-20 sm:w-80">
       <div className="rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
         <div className="mb-2 flex items-start justify-between">
           <span className="rounded-full bg-pink-100 px-2.5 py-0.5 text-xs font-medium text-pink-700">
-            Looking for {BHK_LABELS[pin.bhk]}
+            {isFullFlat && pin.bhk ? `Looking for ${BHK_LABELS[pin.bhk]}` : 'Looking for a flatmate'}
           </span>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600" aria-label="Close">
             ✕
