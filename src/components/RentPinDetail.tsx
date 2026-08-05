@@ -64,6 +64,7 @@ export default function RentPinDetail({ pin, onClose, onReport }: RentPinDetailP
         )}
 
         <div className="mb-3 flex flex-wrap gap-1.5 text-xs text-stone-600">
+          <span className="rounded-full bg-stone-100 px-2 py-0.5">{pin.area_sqft} sq ft</span>
           <span className="rounded-full bg-stone-100 px-2 py-0.5">{FURNISHING_LABELS[pin.furnishing]}</span>
           <span className="rounded-full bg-stone-100 px-2 py-0.5">
             {pin.gated ? 'Gated society' : 'Independent'}

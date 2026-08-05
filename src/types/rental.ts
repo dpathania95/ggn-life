@@ -7,6 +7,7 @@ export type Furnishing = (typeof FURNISHING_VALUES)[number];
 export interface RentPin {
   id: string;
   rent: number;
+  area_sqft: number;
   bhk: RentBhk;
   furnishing: Furnishing;
   gated: boolean;
@@ -24,6 +25,7 @@ export interface RentPin {
 
 export interface NewRentPinInput {
   rent: number;
+  area_sqft: number;
   bhk: RentBhk;
   furnishing: Furnishing;
   gated: boolean;

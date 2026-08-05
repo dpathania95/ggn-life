@@ -23,8 +23,14 @@ interface RentPinFormProps {
   onSubmit: (input: Omit<NewRentPinInput, 'lat' | 'lng'>) => Promise<void>;
 }
 
+interface FieldErrors {
+  rent?: string;
+  area?: string;
+}
+
 export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFormProps) {
   const [rent, setRent] = useState('');
+  const [area, setArea] = useState('');
   const [bhk, setBhk] = useState<RentBhk>('2');
   const [furnishing, setFurnishing] = useState<Furnishing>('semi');
   const [gated, setGated] = useState(false);
@@ -32,6 +38,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
   const [floor, setFloor] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,15 +46,24 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
     setError(null);
 
     const rentValue = Number(rent);
+    const areaValue = Number(area);
+    const errors: FieldErrors = {};
+
     if (!rent || !Number.isFinite(rentValue) || rentValue <= 0) {
-      setError('Enter a valid monthly rent.');
-      return;
+      errors.rent = 'Enter a valid monthly rent.';
     }
+    if (!area || !Number.isFinite(areaValue) || areaValue <= 0) {
+      errors.area = 'Enter a valid area in sq ft.';
+    }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     setSubmitting(true);
     try {
       await onSubmit({
         rent: rentValue,
+        area_sqft: areaValue,
         bhk,
         furnishing,
         gated,
@@ -81,7 +97,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
         </div>
 
         <p className="mb-4 text-xs text-stone-500">
-          {lat.toFixed(5)}, {lng.toFixed(5)} — location will be rounded to ~100m before saving
+          Selected - {lat.toFixed(5)}, {lng.toFixed(5)}
         </p>
 
         <div className="mb-4">
@@ -93,10 +109,33 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
             type="number"
             min={1}
             value={rent}
-            onChange={(e) => setRent(e.target.value)}
+            onChange={(e) => {
+              setRent(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, rent: undefined }));
+            }}
             placeholder="e.g. 35000"
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
+          {fieldErrors.rent && <p className="mt-1 text-xs text-red-600">{fieldErrors.rent}</p>}
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="area" className="mb-1.5 block text-sm font-medium text-stone-700">
+            Area (sq ft)
+          </label>
+          <input
+            id="area"
+            type="number"
+            min={1}
+            value={area}
+            onChange={(e) => {
+              setArea(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, area: undefined }));
+            }}
+            placeholder="e.g. 850"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+          />
+          {fieldErrors.area && <p className="mt-1 text-xs text-red-600">{fieldErrors.area}</p>}
         </div>
 
         <div className="mb-4">

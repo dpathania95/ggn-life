@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { rent, bhk, furnishing, gated, floor, description, need_parking, lat, lng } = body;
+  const { rent, area_sqft, bhk, furnishing, gated, floor, description, need_parking, lat, lng } = body;
 
   // Server-side validation — never trust the client, especially with no auth layer.
   if (!RENT_BHK_VALUES.includes(bhk)) {
@@ -71,6 +71,9 @@ export async function POST(req: NextRequest) {
   }
   if (typeof rent !== 'number' || !Number.isFinite(rent) || rent <= 0) {
     return NextResponse.json({ error: 'rent must be a positive number' }, { status: 400 });
+  }
+  if (typeof area_sqft !== 'number' || !Number.isFinite(area_sqft) || area_sqft <= 0) {
+    return NextResponse.json({ error: 'area_sqft must be a positive number' }, { status: 400 });
   }
   const [minRent, maxRent] = RENT_PLAUSIBILITY_RANGE[bhk];
   if (rent < minRent || rent > maxRent) {
@@ -111,6 +114,7 @@ export async function POST(req: NextRequest) {
     .from('rent_pins')
     .insert({
       rent,
+      area_sqft,
       bhk,
       furnishing,
       gated,

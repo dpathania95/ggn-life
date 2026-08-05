@@ -111,6 +111,7 @@ $$;
 create table rent_pins (
   id uuid primary key default gen_random_uuid(),
   rent integer not null check (rent > 0),
+  area_sqft integer not null check (area_sqft > 0),
   bhk rent_bhk not null,
   furnishing furnishing_type not null,
   gated boolean not null,
