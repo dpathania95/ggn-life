@@ -118,6 +118,7 @@ create table rent_pins (
   floor integer,
   description text check (char_length(description) <= 500),
   need_parking boolean not null,
+  maintenance_included boolean not null default false,
 
   -- geospatial: coordinates rounded to ~100m by the API before insert
   -- (spec Section 3.1) — schema stores whatever it's given.

@@ -72,6 +72,9 @@ export default function RentPinDetail({ pin, onClose, onReport }: RentPinDetailP
           <span className="rounded-full bg-stone-100 px-2 py-0.5">
             {pin.need_parking ? 'Parking available' : 'No parking'}
           </span>
+          {pin.maintenance_included && (
+            <span className="rounded-full bg-stone-100 px-2 py-0.5">Maintenance included</span>
+          )}
           {pin.floor != null && (
             <span className="rounded-full bg-stone-100 px-2 py-0.5">Floor {pin.floor}</span>
           )}

@@ -60,7 +60,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { rent, area_sqft, bhk, furnishing, gated, floor, description, need_parking, lat, lng } = body;
+  const {
+    rent,
+    area_sqft,
+    bhk,
+    furnishing,
+    gated,
+    floor,
+    description,
+    need_parking,
+    maintenance_included,
+    lat,
+    lng,
+  } = body;
 
   // Server-side validation — never trust the client, especially with no auth layer.
   if (!RENT_BHK_VALUES.includes(bhk)) {
@@ -87,6 +99,9 @@ export async function POST(req: NextRequest) {
   }
   if (typeof need_parking !== 'boolean') {
     return NextResponse.json({ error: 'need_parking must be a boolean' }, { status: 400 });
+  }
+  if (typeof maintenance_included !== 'boolean') {
+    return NextResponse.json({ error: 'maintenance_included must be a boolean' }, { status: 400 });
   }
   if (floor !== undefined && floor !== null && !Number.isInteger(floor)) {
     return NextResponse.json({ error: 'floor must be an integer' }, { status: 400 });
@@ -121,6 +136,7 @@ export async function POST(req: NextRequest) {
       floor: floor ?? null,
       description: description?.trim() || null,
       need_parking,
+      maintenance_included,
       lat: roundedLat,
       lng: roundedLng,
       ip_hash: hashIp(ip),

@@ -35,6 +35,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
   const [furnishing, setFurnishing] = useState<Furnishing>('semi');
   const [gated, setGated] = useState(false);
   const [needParking, setNeedParking] = useState(false);
+  const [maintenanceIncluded, setMaintenanceIncluded] = useState(false);
   const [floor, setFloor] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -68,6 +69,7 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
         furnishing,
         gated,
         need_parking: needParking,
+        maintenance_included: maintenanceIncluded,
         floor: floor ? Number(floor) : null,
         description: description.trim() || null,
       });
@@ -196,6 +198,15 @@ export default function RentPinForm({ lat, lng, onCancel, onSubmit }: RentPinFor
               className="accent-brand-600"
             />
             Parking available
+          </label>
+          <label className="flex items-center gap-1.5 text-sm text-stone-700">
+            <input
+              type="checkbox"
+              checked={maintenanceIncluded}
+              onChange={(e) => setMaintenanceIncluded(e.target.checked)}
+              className="accent-brand-600"
+            />
+            Maintenance included
           </label>
         </div>
 

@@ -14,6 +14,7 @@ export interface RentPin {
   floor: number | null;
   description: string | null;
   need_parking: boolean;
+  maintenance_included: boolean;
   lat: number;
   lng: number;
   zone_id: string | null;
@@ -32,6 +33,7 @@ export interface NewRentPinInput {
   floor?: number | null;
   description?: string | null;
   need_parking: boolean;
+  maintenance_included: boolean;
   lat: number;
   lng: number;
 }
