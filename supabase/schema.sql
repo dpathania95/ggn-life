@@ -82,6 +82,7 @@ create type gender_pref_type as enum ('male', 'female');
 create type smoking_pref_type as enum ('smoker', 'non_smoker');
 create type food_pref_type as enum ('veg', 'non_veg');
 create type seeker_type as enum ('full_flat', 'flatmate');
+create type interest_target_type as enum ('listing', 'seeker_pin');
 
 -- 3. Zone assignment — nearest-centroid (spec Section 6). Defined before the
 -- tables below since their triggers reference these functions.
@@ -451,3 +452,35 @@ alter table matches enable row level security;
 
 -- No public select policy — internal bookkeeping only, written/read by the
 -- daily matching job via the service role key.
+
+-- 8. InterestRequest — instant, on-demand contact request (spec Section
+-- 3.10), the manual counterpart to the daily matching job. Uses two
+-- nullable FK columns + an XOR check, same pattern as `matches` above,
+-- rather than the spec's literal generic target_type/target_id columns —
+-- this gets real referential integrity instead of an untyped polymorphic
+-- reference, at the cost of the column names not matching Section 6
+-- verbatim. Email notification is not sent — Resend integration is
+-- deferred (spec Section 9), same as the daily matching job; this table
+-- exists so requests aren't lost once email delivery lands.
+create table interest_requests (
+  id uuid primary key default gen_random_uuid(),
+  target_type interest_target_type not null,
+  target_listing_id uuid references listings (id),
+  target_seeker_pin_id uuid references seeker_pins (id),
+  from_email text not null,
+  ip_hash text not null,
+  created_at timestamptz not null default now(),
+
+  check (
+    (target_type = 'listing' and target_listing_id is not null and target_seeker_pin_id is null)
+    or (target_type = 'seeker_pin' and target_seeker_pin_id is not null and target_listing_id is null)
+  )
+);
+
+create index interest_requests_listing_idx on interest_requests (target_listing_id);
+create index interest_requests_seeker_pin_idx on interest_requests (target_seeker_pin_id);
+
+alter table interest_requests enable row level security;
+
+-- No public select policy — carries from_email, same reasoning as
+-- listings/seeker_pins/matches.

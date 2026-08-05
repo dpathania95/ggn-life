@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Furnishing, Listing, RentBhk } from '@/types/rental';
+import InterestModal from './InterestModal';
 
 const BHK_LABELS: Record<RentBhk, string> = {
   '1': '1 BHK',
@@ -18,11 +20,22 @@ const FURNISHING_LABELS: Record<Furnishing, string> = {
 interface ListingDetailProps {
   listing: Listing;
   onClose: () => void;
+  onInterest: (email: string) => Promise<void>;
 }
 
 // Contact info is deliberately absent — never shown on the map or listing
-// card, only released to a matched seeker (spec Section 3.2).
-export default function ListingDetail({ listing, onClose }: ListingDetailProps) {
+// card, only released to a matched seeker (spec Section 3.2), or right
+// away via the "I'm interested" contact request (spec Section 3.10).
+export default function ListingDetail({ listing, onClose, onInterest }: ListingDetailProps) {
+  const [showInterestModal, setShowInterestModal] = useState(false);
+  const [interested, setInterested] = useState(false);
+
+  const handleInterest = async (email: string) => {
+    await onInterest(email);
+    setInterested(true);
+    setShowInterestModal(false);
+  };
+
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 sm:inset-auto sm:right-4 sm:top-20 sm:w-80">
       <div className="rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
@@ -60,10 +73,27 @@ export default function ListingDetail({ listing, onClose }: ListingDetailProps) 
 
         {listing.description && <p className="mb-3 text-sm text-stone-600">{listing.description}</p>}
 
-        <p className="rounded-md bg-stone-50 px-2 py-1.5 text-xs text-stone-500">
+        <p className="mb-3 rounded-md bg-stone-50 px-2 py-1.5 text-xs text-stone-500">
           Contact info is shared only if you&apos;re matched — post a &ldquo;seeker&rdquo; want-ad to get considered.
         </p>
+
+        <div className="border-t border-stone-100 pt-3">
+          {interested ? (
+            <p className="text-xs text-stone-500">Thanks — they&apos;ve been notified.</p>
+          ) : (
+            <button
+              onClick={() => setShowInterestModal(true)}
+              className="w-full rounded-lg bg-brand-600 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
+            >
+              I&apos;m interested
+            </button>
+          )}
+        </div>
       </div>
+
+      {showInterestModal && (
+        <InterestModal onSubmit={handleInterest} onCancel={() => setShowInterestModal(false)} />
+      )}
     </div>
   );
 }

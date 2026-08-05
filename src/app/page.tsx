@@ -152,6 +152,30 @@ export default function HomePage() {
     }
   };
 
+  const handleInterestListing = async (listingId: string, email: string) => {
+    const res = await fetch(`/api/listings/${listingId}/interest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_email: email }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json();
+      throw new Error(error ?? 'Failed to send interest request');
+    }
+  };
+
+  const handleInterestSeekerPin = async (seekerPinId: string, email: string) => {
+    const res = await fetch(`/api/seeker-pins/${seekerPinId}/interest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_email: email }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json();
+      throw new Error(error ?? 'Failed to send interest request');
+    }
+  };
+
   const handleSubmitListing = async (input: Omit<NewListingInput, 'lat' | 'lng'>) => {
     if (!dropLocation) return;
     const payload: NewListingInput = { ...input, lat: dropLocation.lat, lng: dropLocation.lng };
@@ -334,11 +358,19 @@ export default function HomePage() {
       )}
 
       {selectedListing && (
-        <ListingDetail listing={selectedListing} onClose={() => setSelectedListing(null)} />
+        <ListingDetail
+          listing={selectedListing}
+          onClose={() => setSelectedListing(null)}
+          onInterest={(email) => handleInterestListing(selectedListing.id, email)}
+        />
       )}
 
       {selectedSeekerPin && (
-        <SeekerPinDetail pin={selectedSeekerPin} onClose={() => setSelectedSeekerPin(null)} />
+        <SeekerPinDetail
+          pin={selectedSeekerPin}
+          onClose={() => setSelectedSeekerPin(null)}
+          onInterest={(email) => handleInterestSeekerPin(selectedSeekerPin.id, email)}
+        />
       )}
 
       {/* Manage-link stand-in until email integration exists (spec Section 3.6) */}

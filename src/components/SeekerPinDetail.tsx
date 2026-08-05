@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Furnishing, RentBhk, SeekerPin } from '@/types/rental';
+import InterestModal from './InterestModal';
 
 const BHK_LABELS: Record<RentBhk, string> = {
   '1': '1 BHK',
@@ -18,13 +20,23 @@ const FURNISHING_LABELS: Record<Furnishing, string> = {
 interface SeekerPinDetailProps {
   pin: SeekerPin;
   onClose: () => void;
+  onInterest: (email: string) => Promise<void>;
 }
 
 // Public view of a seeker want-ad (spec Section 3.9's seeker-pin layer).
 // Contact info is never included — only released to a matched party
-// (spec Section 3.2/3.3).
-export default function SeekerPinDetail({ pin, onClose }: SeekerPinDetailProps) {
+// (spec Section 3.2/3.3), or right away via the "I'm interested" contact
+// request (spec Section 3.10).
+export default function SeekerPinDetail({ pin, onClose, onInterest }: SeekerPinDetailProps) {
+  const [showInterestModal, setShowInterestModal] = useState(false);
+  const [interested, setInterested] = useState(false);
   const isFullFlat = pin.seeker_type === 'full_flat';
+
+  const handleInterest = async (email: string) => {
+    await onInterest(email);
+    setInterested(true);
+    setShowInterestModal(false);
+  };
   const badges: string[] = [];
   if (isFullFlat) {
     if (pin.furnishing_pref) badges.push(FURNISHING_LABELS[pin.furnishing_pref]);
@@ -68,10 +80,27 @@ export default function SeekerPinDetail({ pin, onClose }: SeekerPinDetailProps) 
           </div>
         )}
 
-        <p className="rounded-md bg-stone-50 px-2 py-1.5 text-xs text-stone-500">
+        <p className="mb-3 rounded-md bg-stone-50 px-2 py-1.5 text-xs text-stone-500">
           Contact info is shared only if matched — got a place that fits? List it to be considered.
         </p>
+
+        <div className="border-t border-stone-100 pt-3">
+          {interested ? (
+            <p className="text-xs text-stone-500">Thanks — they&apos;ve been notified.</p>
+          ) : (
+            <button
+              onClick={() => setShowInterestModal(true)}
+              className="w-full rounded-lg bg-brand-600 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
+            >
+              I&apos;m interested
+            </button>
+          )}
+        </div>
       </div>
+
+      {showInterestModal && (
+        <InterestModal onSubmit={handleInterest} onCancel={() => setShowInterestModal(false)} />
+      )}
     </div>
   );
 }

@@ -48,6 +48,14 @@ export const reportLimiter = makeLimiter({
   prefix: 'ggnlife:report',
 });
 
+// Looser than the 1/day pin-creation caps — expressing interest is
+// lower-stakes, but still needs a ceiling against spam (spec Section
+// 3.10/4). Shared across both listing and seeker-pin interest requests.
+export const interestRequestLimiter = makeLimiter({
+  limiter: Ratelimit.slidingWindow(5, '1 d'),
+  prefix: 'ggnlife:interest-request',
+});
+
 // Nominatim's usage policy caps requests at 1/second GLOBALLY, across all
 // callers of the shared free public API — not per-IP like the limiters
 // above (spec Section 3.8). Always call .limit('global') with this one.
