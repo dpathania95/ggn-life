@@ -13,7 +13,13 @@ import SearchBar from '@/components/SearchBar';
 import FilterPanel from '@/components/FilterPanel';
 import AreaStats from '@/components/AreaStats';
 import { Filter, Home, IndianRupee, Users } from 'lucide-react';
-import { DEFAULT_FILTERS, DEFAULT_LAYERS, matchesListingFilters, matchesRentPinFilters } from '@/lib/filterPins';
+import {
+  DEFAULT_FILTERS,
+  DEFAULT_LAYERS,
+  matchesListingFilters,
+  matchesRentPinFilters,
+  matchesSeekerPinFilters,
+} from '@/lib/filterPins';
 import {
   Listing,
   NewListingInput,
@@ -183,8 +189,7 @@ export default function HomePage() {
   };
 
   // Layer toggle + filters (spec Section 3.9) — filtering runs client-side
-  // against the already viewport-bounded fetch; seeker pins aren't filtered
-  // by BHK/budget/etc, only shown/hidden via the layer toggle.
+  // against the already viewport-bounded fetch.
   const visibleRentPins = useMemo(
     () => (layers.rentPins ? rentPins.filter((p) => matchesRentPinFilters(filters, p)) : []),
     [rentPins, layers.rentPins, filters]
@@ -194,8 +199,8 @@ export default function HomePage() {
     [listings, layers.listings, filters]
   );
   const visibleSeekerPins = useMemo(
-    () => (layers.seekerPins ? seekerPins : []),
-    [seekerPins, layers.seekerPins]
+    () => (layers.seekerPins ? seekerPins.filter((p) => matchesSeekerPinFilters(filters, p)) : []),
+    [seekerPins, layers.seekerPins, filters]
   );
 
   return (

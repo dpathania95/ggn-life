@@ -193,10 +193,10 @@ export default function MapView({
     });
   }, [listings, onListingClick]);
 
-  // Re-render seeker pin markers whenever the list changes — a third
-  // visually distinct style (hollow magenta ring) since a seeker pin is a
-  // want-ad anchor point, not a data point or an addressable property
-  // (spec Section 3.9's layer toggle).
+  // Re-render seeker pin markers whenever the list changes — anonymized
+  // budget/BHK bubble (spec Section 3.9: "rendered as a budget/BHK bubble
+  // ... no name or contact shown"), dashed border keeps it visually
+  // distinct from rent pins/listings as a want-ad rather than a data point.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -206,18 +206,26 @@ export default function MapView({
 
     seekerPins.forEach((pin) => {
       const el = document.createElement('button');
-      const seekingLabel = pin.seeker_type === 'full_flat' && pin.bhk ? `${pin.bhk} BHK` : 'flatmate';
+      const seekingLabel = pin.seeker_type === 'full_flat' && pin.bhk ? `${pin.bhk}BHK` : 'Flatmate';
+      const budgetLabel = `₹${Math.round(pin.budget_min / 1000)}–${Math.round(pin.budget_max / 1000)}k`;
       el.setAttribute(
         'aria-label',
         `Seeking: ₹${pin.budget_min.toLocaleString('en-IN')}–${pin.budget_max.toLocaleString('en-IN')}/mo · ${seekingLabel}`
       );
-      el.style.width = '26px';
-      el.style.height = '26px';
-      el.style.borderRadius = '50%';
-      el.style.border = `3px dashed ${MARKER_SEEKER_PIN}`;
-      el.style.background = 'white';
-      el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
+      el.style.height = '20px';
+      el.style.padding = '0 6px';
+      el.style.borderRadius = '10px';
+      el.style.border = `2px dashed white`;
+      el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)';
+      el.style.background = MARKER_SEEKER_PIN;
+      el.style.color = 'white';
+      el.style.fontSize = '9px';
+      el.style.fontWeight = '600';
+      el.style.lineHeight = '16px';
+      el.style.whiteSpace = 'nowrap';
+      el.style.textAlign = 'center';
       el.style.cursor = 'pointer';
+      el.textContent = `${budgetLabel} · ${seekingLabel}`;
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([pin.lng, pin.lat])

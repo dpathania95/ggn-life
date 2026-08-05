@@ -1,4 +1,4 @@
-import { Furnishing, Listing, ListingType, RentBhk, RentPin } from '@/types/rental';
+import { Furnishing, Listing, ListingType, RentBhk, RentPin, SeekerPin } from '@/types/rental';
 
 export interface FilterState {
   bhk: RentBhk[];
@@ -75,4 +75,50 @@ export function matchesListingFilters(filters: FilterState, listing: Listing): b
     parking: listing.parking,
     zoneId: listing.zone_id,
   });
+}
+
+// Seeker pins reuse the same filter fields (spec Section 3.9: "Filters that
+// apply to rent pins, listings, and seeker pins alike") but can't reuse
+// matchesCoreFilters directly — budget is a range, not a single rent value,
+// and BHK/furnishing/gated/parking are full_flat-only (n/a for flatmate
+// pins, which pass through those checks untouched rather than being
+// excluded). A full_flat pin that left a preference unset (null) hasn't
+// ruled anything out either, so it also passes through that check.
+export function matchesSeekerPinFilters(filters: FilterState, pin: SeekerPin): boolean {
+  const isFullFlat = pin.seeker_type === 'full_flat';
+
+  if (isFullFlat && filters.bhk.length > 0 && (!pin.bhk || !filters.bhk.includes(pin.bhk))) return false;
+
+  // Budget range overlap, not a single-value check (spec 3.9: "budget range (min–max)").
+  if (filters.minRent != null && pin.budget_max < filters.minRent) return false;
+  if (filters.maxRent != null && pin.budget_min > filters.maxRent) return false;
+
+  if (isFullFlat) {
+    if (
+      filters.furnishing.length > 0 &&
+      pin.furnishing_pref &&
+      !filters.furnishing.includes(pin.furnishing_pref)
+    ) {
+      return false;
+    }
+    if (filters.gated !== 'any' && pin.gated_pref != null && pin.gated_pref !== (filters.gated === 'yes')) {
+      return false;
+    }
+    if (
+      filters.parking !== 'any' &&
+      pin.parking_pref != null &&
+      pin.parking_pref !== (filters.parking === 'yes')
+    ) {
+      return false;
+    }
+  }
+
+  // Zone filter checks the seeker's preferred_zone_ids (what they're
+  // looking for), not their anchor pin's own zone_id — more useful for
+  // someone browsing seeker pins by area.
+  if (filters.zoneIds.length > 0 && !pin.preferred_zone_ids.some((z) => filters.zoneIds.includes(z))) {
+    return false;
+  }
+
+  return true;
 }

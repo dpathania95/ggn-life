@@ -108,7 +108,10 @@ export default function FilterPanel({
 
         <div className="mb-4">
           <label className="mb-1.5 block text-sm font-medium text-stone-700">
-            BHK <span className="text-stone-400">(applies to rent pins &amp; listings)</span>
+            BHK{' '}
+            <span className="text-stone-400">
+              (rent pins, listings &amp; full-flat seekers — n/a for flatmate seekers)
+            </span>
           </label>
           <div className="flex flex-wrap gap-2">
             {RENT_BHK_VALUES.map((b) => (
@@ -131,7 +134,7 @@ export default function FilterPanel({
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="min_rent" className="mb-1.5 block text-sm font-medium text-stone-700">
-              Min rent (₹)
+              Min rent / budget (₹)
             </label>
             <input
               id="min_rent"
@@ -147,7 +150,7 @@ export default function FilterPanel({
           </div>
           <div>
             <label htmlFor="max_rent" className="mb-1.5 block text-sm font-medium text-stone-700">
-              Max rent (₹)
+              Max rent / budget (₹)
             </label>
             <input
               id="max_rent"
@@ -164,7 +167,9 @@ export default function FilterPanel({
         </div>
 
         <div className="mb-4">
-          <label className="mb-1.5 block text-sm font-medium text-stone-700">Furnishing</label>
+          <label className="mb-1.5 block text-sm font-medium text-stone-700">
+            Furnishing <span className="text-stone-400">(rent pins, listings &amp; full-flat seekers)</span>
+          </label>
           <div className="flex flex-wrap gap-2">
             {FURNISHING_VALUES.map((f) => (
               <button
@@ -187,7 +192,9 @@ export default function FilterPanel({
 
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-stone-700">Gated society</label>
+            <label className="mb-1.5 block text-sm font-medium text-stone-700">
+              Gated society <span className="text-stone-400">(full-flat seekers too)</span>
+            </label>
             <div className="flex gap-2">
               {(['any', 'yes', 'no'] as const).map((v) => (
                 <button
@@ -206,7 +213,9 @@ export default function FilterPanel({
             </div>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-stone-700">Parking</label>
+            <label className="mb-1.5 block text-sm font-medium text-stone-700">
+              Parking <span className="text-stone-400">(full-flat seekers too)</span>
+            </label>
             <div className="flex gap-2">
               {(['any', 'yes', 'no'] as const).map((v) => (
                 <button
@@ -251,7 +260,9 @@ export default function FilterPanel({
         </div>
 
         <div className="mb-5">
-          <label className="mb-1.5 block text-sm font-medium text-stone-700">Area</label>
+          <label className="mb-1.5 block text-sm font-medium text-stone-700">
+            Area <span className="text-stone-400">(seekers matched by preferred area, not pin location)</span>
+          </label>
           <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">
             {zones.map((zone) => (
               <button
