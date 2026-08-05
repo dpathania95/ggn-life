@@ -81,6 +81,7 @@ create type seeker_status as enum ('active', 'matched', 'expired');
 create type gender_pref_type as enum ('male', 'female');
 create type smoking_pref_type as enum ('smoker', 'non_smoker');
 create type food_pref_type as enum ('veg', 'non_veg');
+create type seeker_type as enum ('full_flat', 'flatmate');
 
 -- 3. Zone assignment — nearest-centroid (spec Section 6). Defined before the
 -- tables below since their triggers reference these functions.
@@ -287,17 +288,27 @@ as $$
 $$;
 
 -- 6. SeekerPin — want-ads for daily matching (spec Section 3.3/3.4)
+-- seeker_type splits the form into full_flat (bhk required, furnishing/
+-- parking/gated are preferences) vs flatmate (no bhk, lifestyle prefs
+-- instead). Only bhk gets a DB-level check tying it to seeker_type — the
+-- other type-scoped columns stay plain nullable, enforced at the API layer,
+-- since a symmetric check would reject a live-DB migration's backfilled
+-- rows that carry data from the old unified form.
 create table seeker_pins (
   id uuid primary key default gen_random_uuid(),
+  seeker_type seeker_type not null default 'full_flat',
   budget_min integer not null check (budget_min > 0),
   budget_max integer not null check (budget_max >= budget_min),
-  bhk rent_bhk not null,
+  bhk rent_bhk,
+  furnishing_pref furnishing_type,
+  parking_pref boolean,
+  gated_pref boolean,
   preferred_zone_ids uuid[] not null default '{}',
   move_in_by date not null,
   gender_pref gender_pref_type,
   smoking_pref smoking_pref_type,
   food_pref food_pref_type,
-  pet_owner boolean not null default false,
+  pet_owner boolean,
 
   -- anchor point for radius matching — can be rounded, per spec Section 6
   location geography(Point, 4326) not null,
@@ -311,7 +322,12 @@ create table seeker_pins (
   expires_at timestamptz not null default (now() + interval '30 days'),
 
   ip_hash text not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+
+  constraint seeker_pins_bhk_matches_type check (
+    (seeker_type = 'full_flat' and bhk is not null)
+    or (seeker_type = 'flatmate' and bhk is null)
+  )
 );
 
 create index seeker_pins_location_idx on seeker_pins using gist (location);
@@ -346,9 +362,13 @@ create or replace function seeker_pins_in_bounds(
 )
 returns table (
   id uuid,
+  seeker_type seeker_type,
   budget_min integer,
   budget_max integer,
   bhk rent_bhk,
+  furnishing_pref furnishing_type,
+  parking_pref boolean,
+  gated_pref boolean,
   preferred_zone_ids uuid[],
   move_in_by date,
   gender_pref gender_pref_type,
@@ -365,7 +385,8 @@ language sql
 stable
 as $$
   select
-    s.id, s.budget_min, s.budget_max, s.bhk, s.preferred_zone_ids, s.move_in_by,
+    s.id, s.seeker_type, s.budget_min, s.budget_max, s.bhk, s.furnishing_pref,
+    s.parking_pref, s.gated_pref, s.preferred_zone_ids, s.move_in_by,
     s.gender_pref, s.smoking_pref, s.food_pref, s.pet_owner, s.lat, s.lng,
     s.zone_id, s.status, s.created_at
   from seeker_pins s
