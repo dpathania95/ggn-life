@@ -43,6 +43,14 @@ interface SeekerPinFormProps {
   onSubmit: (input: Omit<NewSeekerPinInput, 'lat' | 'lng'>) => Promise<void>;
 }
 
+interface FieldErrors {
+  budgetMin?: string;
+  budgetMax?: string;
+  preferredZoneIds?: string;
+  moveInBy?: string;
+  contactEmail?: string;
+}
+
 export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPinFormProps) {
   const [zones, setZones] = useState<Zone[]>([]);
   const [budgetMin, setBudgetMin] = useState('');
@@ -56,6 +64,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
   const [petOwner, setPetOwner] = useState(false);
   const [contactEmail, setContactEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,6 +76,7 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
 
   const toggleZone = (id: string) => {
     setPreferredZoneIds((prev) => (prev.includes(id) ? prev.filter((z) => z !== id) : [...prev, id]));
+    setFieldErrors((prev) => ({ ...prev, preferredZoneIds: undefined }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,26 +85,26 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
 
     const budgetMinValue = Number(budgetMin);
     const budgetMaxValue = Number(budgetMax);
+    const errors: FieldErrors = {};
+
     if (!budgetMin || !Number.isFinite(budgetMinValue) || budgetMinValue <= 0) {
-      setError('Enter a valid minimum budget.');
-      return;
+      errors.budgetMin = 'Enter a valid minimum budget.';
     }
     if (!budgetMax || !Number.isFinite(budgetMaxValue) || budgetMaxValue < budgetMinValue) {
-      setError('Max budget must be at least the min budget.');
-      return;
+      errors.budgetMax = 'Max budget must be at least the min budget.';
     }
     if (preferredZoneIds.length === 0) {
-      setError('Pick at least one preferred area.');
-      return;
+      errors.preferredZoneIds = 'Pick at least one preferred area.';
     }
     if (!moveInBy) {
-      setError('Pick a move-in-by date.');
-      return;
+      errors.moveInBy = 'Pick a move-in-by date.';
     }
     if (!contactEmail.trim() || !contactEmail.includes('@')) {
-      setError('A valid email is required — used only for match notifications, never shown publicly.');
-      return;
+      errors.contactEmail = 'A valid email is required — used only for match notifications, never shown publicly.';
     }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     setSubmitting(true);
     try {
@@ -149,10 +159,14 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
               type="number"
               min={1}
               value={budgetMin}
-              onChange={(e) => setBudgetMin(e.target.value)}
+              onChange={(e) => {
+                setBudgetMin(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, budgetMin: undefined }));
+              }}
               placeholder="e.g. 25000"
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
+            {fieldErrors.budgetMin && <p className="mt-1 text-xs text-red-600">{fieldErrors.budgetMin}</p>}
           </div>
           <div>
             <label htmlFor="budget_max" className="mb-1.5 block text-sm font-medium text-stone-700">
@@ -163,10 +177,14 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
               type="number"
               min={1}
               value={budgetMax}
-              onChange={(e) => setBudgetMax(e.target.value)}
+              onChange={(e) => {
+                setBudgetMax(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, budgetMax: undefined }));
+              }}
               placeholder="e.g. 45000"
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
+            {fieldErrors.budgetMax && <p className="mt-1 text-xs text-red-600">{fieldErrors.budgetMax}</p>}
           </div>
         </div>
 
@@ -213,19 +231,26 @@ export default function SeekerPinForm({ lat, lng, onCancel, onSubmit }: SeekerPi
               </button>
             ))}
           </div>
+          {fieldErrors.preferredZoneIds && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.preferredZoneIds}</p>
+          )}
         </div>
 
         <div className="mb-4">
           <label htmlFor="move_in_by" className="mb-1.5 block text-sm font-medium text-stone-700">
-            Move in by
+            Moving date
           </label>
           <input
             id="move_in_by"
             type="date"
             value={moveInBy}
-            onChange={(e) => setMoveInBy(e.target.value)}
+            onChange={(e) => {
+              setMoveInBy(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, moveInBy: undefined }));
+            }}
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           />
+          {fieldErrors.moveInBy && <p className="mt-1 text-xs text-red-600">{fieldErrors.moveInBy}</p>}
         </div>
 
         <div className="mb-4">
