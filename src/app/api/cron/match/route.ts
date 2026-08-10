@@ -13,11 +13,14 @@ import { Listing, SeekerPin } from '@/types/rental';
 // Triggered by Vercel Cron (see vercel.json); protected by CRON_SECRET so
 // it can't be triggered by an arbitrary public request.
 //
-// For each active, unexpired seeker pin: find listings and other seeker
-// pins within MATCH_RADIUS_METERS, hard-filter on budget+BHK, soft-rank by
-// lifestyle preference overlap, and create Match rows for genuinely new
-// pairs (deduped against existing matches) — a seeker/listing can produce
-// multiple matches over its lifetime, not one-and-done (spec Section 7).
+// For each active, unexpired seeker pin: full_flat seekers are matched
+// against whole_flat listings (budget+BHK hard filter), flatmate seekers
+// against other flatmate seekers (budget-only hard filter, lifestyle
+// soft-rank) — the two types never cross-match (spec Section 3.3/3.4/7),
+// so only the relevant RPC is queried per seeker. Match rows are created
+// for genuinely new pairs (deduped against existing matches) — a
+// seeker/listing can produce multiple matches over its lifetime, not
+// one-and-done (spec Section 7).
 //
 // Email notification is not sent — Resend integration is deferred (spec
 // Section 9). Match rows are created with notified=false (the column
@@ -55,33 +58,38 @@ export async function GET(req: NextRequest) {
   let matchesCreated = 0;
 
   for (const seeker of activeSeekers as SeekerPin[]) {
-    const [
-      { data: nearbyListings, error: nearbyListingsError },
-      { data: nearbySeekers, error: nearbySeekersError },
-    ] = await Promise.all([
-      supabase.rpc('nearby_listings_for_seeker', {
-        seeker_id: seeker.id,
-        radius_meters: MATCH_RADIUS_METERS,
-      }),
-      supabase.rpc('nearby_seeker_pins_for_seeker', {
-        seeker_id: seeker.id,
-        radius_meters: MATCH_RADIUS_METERS,
-      }),
-    ]);
+    const isFullFlat = seeker.seeker_type === 'full_flat';
+    let listingCandidates: Listing[] = [];
+    let seekerCandidates: SeekerPin[] = [];
 
-    if (nearbyListingsError) {
-      console.error('nearby_listings_for_seeker failed:', JSON.stringify(nearbyListingsError));
+    // Only the relevant RPC is queried per seeker type — full_flat seekers
+    // never match other seekers, flatmate seekers never match listings
+    // (spec Section 3.3/3.4/7), so the other query would be entirely
+    // discarded by isHardMatchForListing/isHardMatchForSeeker's own type
+    // guards anyway. Skipping it avoids the wasted round-trip.
+    if (isFullFlat) {
+      const { data: nearbyListings, error: nearbyListingsError } = await supabase.rpc(
+        'nearby_listings_for_seeker',
+        { seeker_id: seeker.id, radius_meters: MATCH_RADIUS_METERS }
+      );
+      if (nearbyListingsError) {
+        console.error('nearby_listings_for_seeker failed:', JSON.stringify(nearbyListingsError));
+      }
+      listingCandidates = ((nearbyListings ?? []) as Listing[]).filter((l) =>
+        isHardMatchForListing(seeker, l)
+      );
+    } else {
+      const { data: nearbySeekers, error: nearbySeekersError } = await supabase.rpc(
+        'nearby_seeker_pins_for_seeker',
+        { seeker_id: seeker.id, radius_meters: MATCH_RADIUS_METERS }
+      );
+      if (nearbySeekersError) {
+        console.error('nearby_seeker_pins_for_seeker failed:', JSON.stringify(nearbySeekersError));
+      }
+      seekerCandidates = ((nearbySeekers ?? []) as SeekerPin[])
+        .filter((other) => isHardMatchForSeeker(seeker, other))
+        .sort((a, b) => seekerPreferenceScore(seeker, b) - seekerPreferenceScore(seeker, a));
     }
-    if (nearbySeekersError) {
-      console.error('nearby_seeker_pins_for_seeker failed:', JSON.stringify(nearbySeekersError));
-    }
-
-    const listingCandidates = ((nearbyListings ?? []) as Listing[]).filter((l) =>
-      isHardMatchForListing(seeker, l)
-    );
-    const seekerCandidates = ((nearbySeekers ?? []) as SeekerPin[])
-      .filter((other) => isHardMatchForSeeker(seeker, other))
-      .sort((a, b) => seekerPreferenceScore(seeker, b) - seekerPreferenceScore(seeker, a));
 
     let createdForThisSeeker = 0;
 
