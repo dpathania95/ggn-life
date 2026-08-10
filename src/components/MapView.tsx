@@ -9,8 +9,11 @@ import { Listing, RentPin, SeekerPin } from '@/types/rental';
 const OPENFREEMAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
 // Gurgaon-wide default view, per the locked "no zone restriction" decision.
+// Zoom 12 showed well past city limits (Delhi border to the east, rural
+// villages to the west) — 13 frames the city's sectors without needing an
+// immediate pan.
 const GURGAON_CENTER: [number, number] = [77.0266, 28.4595];
-const GURGAON_DEFAULT_ZOOM = 12;
+const GURGAON_DEFAULT_ZOOM = 11;
 const SEARCH_FLY_TO_ZOOM = 15;
 
 // Categorical marker palette — validated with the dataviz skill's
@@ -73,6 +76,7 @@ export default function MapView({
       style: OPENFREEMAP_STYLE,
       center: GURGAON_CENTER,
       zoom: GURGAON_DEFAULT_ZOOM,
+      minZoom: GURGAON_DEFAULT_ZOOM
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
