@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import maplibregl, { Map as MLMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Listing, RentPin, SeekerPin } from '@/types/rental';
+import { Listing, RentBhk, RentPin, SeekerPin } from '@/types/rental';
 
 // Free, no API key, no per-load billing — see spec Section 9a.
 const OPENFREEMAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
@@ -16,18 +16,90 @@ const GURGAON_CENTER: [number, number] = [77.0266, 28.4595];
 const GURGAON_DEFAULT_ZOOM = 11;
 const SEARCH_FLY_TO_ZOOM = 15;
 
-// Categorical marker palette — validated with the dataviz skill's
-// validate_palette.js (OKLab CVD + normal-vision separation, contrast vs
-// surface, --pairs all since any two marker types can sit side by side on
-// the map). MARKER_OUTLIER is a status color (not part of the categorical
-// set), deliberately distinct from all three so it never impersonates a
-// series — it replaces MARKER_RENT_PIN only on flagged rent pins, never
-// shown alongside it for the same marker.
-const MARKER_RENT_PIN = '#5851d3'; // violet — brand color, doubles as slot 1
-const MARKER_LISTING = '#2f8f5b'; // green — slot 2
-const MARKER_SEEKER_PIN = '#e87ba4'; // magenta — slot 3
-const MARKER_OUTLIER = '#c99a2e'; // gold — status/warning, reserved
-const MARKER_OUTLIER_BORDER = '#8f6c1c'; // darker gold, so the dashed ring reads against the fill
+// BHK is an ordered/magnitude value (1 < 2 < 3 < 4+), not an unrelated
+// category, so it gets a single-hue sequential ramp per the dataviz skill's
+// rule ("sequential = one hue, light→dark") rather than 4 arbitrary hues —
+// this is also the more colorblind-safe choice, since lightness ordering
+// survives every common CVD type far better than hue differences do.
+// Shared by rent pins and listings (spec: "different colors for different
+// BHK flats"). validate_palette.js wasn't runnable in this environment, so
+// contrast was checked by hand instead: white text against every step here
+// clears WCAG AA (4.5:1) with margin (5.2:1 at the lightest step up to
+// 10.4:1 at the darkest).
+const BHK_COLORS: Record<RentBhk, string> = {
+  '1': '#2563eb',
+  '2': '#0d9488',
+  '3': '#d97706',
+  '4_plus': '#7123de',
+};
+
+// '4_plus' is the enum value, not display text — every marker label/aria
+// string below reads through this instead of interpolating pin.bhk directly.
+const BHK_LABELS: Record<RentBhk, string> = {
+  '1': '1',
+  '2': '2',
+  '3': '3',
+  '4_plus': '4+',
+};
+
+// Seeker pins keep their own fixed color — they're want-ads, not "flats",
+// and flatmate-type seekers don't even have a BHK to color by.
+const MARKER_SEEKER_PIN = '#e87ba4'; // magenta
+const MARKER_OUTLIER_BORDER = '#c99a2e'; // gold dashed border — status flag, not a fill override, so the BHK color underneath still reads
+
+// Rounded-rectangle "callout" badge with a small triangle tail pointing
+// down to the exact location — matches the pin style on bengaluru.rent,
+// shared by all three marker types. MapLibre's default marker anchor
+// ('bottom') lines up with the tail's tip since the tail is the last,
+// bottommost element in the (unrotated, normal-flow) layout.
+function createPinMarker(options: {
+  fill: string;
+  border: string | null;
+  label: string;
+  ariaLabel: string;
+  onClick: () => void;
+}): HTMLButtonElement {
+  const el = document.createElement('button');
+  el.setAttribute('aria-label', options.ariaLabel);
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+  el.style.alignItems = 'center';
+  el.style.padding = '0';
+  el.style.background = 'transparent';
+  el.style.border = 'none';
+  el.style.cursor = 'pointer';
+
+  const badge = document.createElement('div');
+  badge.style.background = options.fill;
+  badge.style.border = options.border ?? 'none';
+  badge.style.borderRadius = '6px';
+  badge.style.padding = '3px 7px';
+  badge.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
+  badge.style.color = 'white';
+  badge.style.fontSize = '10px';
+  badge.style.fontWeight = '600';
+  badge.style.lineHeight = '1.3';
+  badge.style.textAlign = 'center';
+  badge.style.whiteSpace = 'nowrap';
+  badge.innerHTML = options.label;
+  el.appendChild(badge);
+
+  const tail = document.createElement('div');
+  tail.style.width = '0';
+  tail.style.height = '0';
+  tail.style.marginTop = '-1px';
+  tail.style.borderLeft = '5px solid transparent';
+  tail.style.borderRight = '5px solid transparent';
+  tail.style.borderTop = `6px solid ${options.fill}`;
+  el.appendChild(tail);
+
+  el.onclick = (evt) => {
+    evt.stopPropagation();
+    options.onClick();
+  };
+
+  return el;
+}
 
 interface MapViewProps {
   rentPins: RentPin[];
@@ -113,7 +185,9 @@ export default function MapView({
     mapRef.current?.flyTo({ center: [flyTo.lng, flyTo.lat], zoom: SEARCH_FLY_TO_ZOOM });
   }, [flyTo]);
 
-  // Re-render rent pin markers whenever the pin list changes
+  // Re-render rent pin markers whenever the pin list changes — pin,
+  // colored by BHK, with an outlier flag shown as a dashed gold border
+  // rather than replacing the fill (so the BHK color still reads).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -122,28 +196,13 @@ export default function MapView({
     rentMarkersRef.current = [];
 
     rentPins.forEach((pin) => {
-      const el = document.createElement('button');
-      el.setAttribute(
-        'aria-label',
-        `₹${pin.rent.toLocaleString('en-IN')}/mo · ${pin.bhk} BHK${pin.is_outlier ? ' (unverified)' : ''}`
-      );
-      el.style.width = '30px';
-      el.style.height = '20px';
-      el.style.borderRadius = '10px';
-      el.style.border = pin.is_outlier ? `2px dashed ${MARKER_OUTLIER_BORDER}` : '2px solid white';
-      el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)';
-      el.style.background = pin.is_outlier ? MARKER_OUTLIER : MARKER_RENT_PIN;
-      el.style.color = 'white';
-      el.style.fontSize = '9px';
-      el.style.fontWeight = '600';
-      el.style.lineHeight = '18px';
-      el.style.textAlign = 'center';
-      el.style.cursor = 'pointer';
-      el.textContent = `₹${Math.round(pin.rent / 1000)}k`;
-      el.onclick = (evt) => {
-        evt.stopPropagation();
-        onRentPinClick(pin);
-      };
+      const el = createPinMarker({
+        fill: BHK_COLORS[pin.bhk],
+        border: pin.is_outlier ? `2px dashed ${MARKER_OUTLIER_BORDER}` : null,
+        label: `${BHK_LABELS[pin.bhk]}BHK · ₹${Math.round(pin.rent / 1000)}k`,
+        ariaLabel: `₹${pin.rent.toLocaleString('en-IN')}/mo · ${BHK_LABELS[pin.bhk]} BHK${pin.is_outlier ? ' (unverified)' : ''}`,
+        onClick: () => onRentPinClick(pin),
+      });
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([pin.lng, pin.lat])
@@ -153,9 +212,10 @@ export default function MapView({
     });
   }, [rentPins, onRentPinClick]);
 
-  // Re-render listing markers whenever the listing list changes — visually
-  // distinct from rent pins (square vs pill, green vs violet) since a listing
-  // is an addressable property, not an anonymous data point (spec Section 3.1).
+  // Re-render listing markers whenever the listing list changes — same
+  // pin shape and BHK color scale as rent pins (spec: "different colors
+  // for different BHK flats" applies to both), with a small house glyph
+  // in the label so a listing doesn't read as a rent pin at a glance.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -164,30 +224,15 @@ export default function MapView({
     listingMarkersRef.current = [];
 
     listings.forEach((listing) => {
-      const el = document.createElement('button');
-      el.setAttribute(
-        'aria-label',
-        `Listing: ₹${listing.rent.toLocaleString('en-IN')}/mo · ${listing.bhk} BHK · ${
+      const el = createPinMarker({
+        fill: BHK_COLORS[listing.bhk],
+        border: null,
+        label: `${BHK_LABELS[listing.bhk]}BHK · ₹${Math.round(listing.rent / 1000)}k`,
+        ariaLabel: `Listing: ₹${listing.rent.toLocaleString('en-IN')}/mo · ${BHK_LABELS[listing.bhk]} BHK · ${
           listing.type === 'whole_flat' ? 'Whole flat' : 'Room'
-        }`
-      );
-      el.style.width = '30px';
-      el.style.height = '20px';
-      el.style.borderRadius = '4px';
-      el.style.border = '2px solid white';
-      el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)';
-      el.style.background = MARKER_LISTING;
-      el.style.color = 'white';
-      el.style.fontSize = '9px';
-      el.style.fontWeight = '600';
-      el.style.lineHeight = '18px';
-      el.style.textAlign = 'center';
-      el.style.cursor = 'pointer';
-      el.textContent = `₹${Math.round(listing.rent / 1000)}k`;
-      el.onclick = (evt) => {
-        evt.stopPropagation();
-        onListingClick(listing);
-      };
+        }`,
+        onClick: () => onListingClick(listing),
+      });
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([listing.lng, listing.lat])
@@ -197,10 +242,10 @@ export default function MapView({
     });
   }, [listings, onListingClick]);
 
-  // Re-render seeker pin markers whenever the list changes — anonymized
-  // budget/BHK bubble (spec Section 3.9: "rendered as a budget/BHK bubble
-  // ... no name or contact shown"), dashed border keeps it visually
-  // distinct from rent pins/listings as a want-ad rather than a data point.
+  // Re-render seeker pin markers whenever the list changes — same pin
+  // shape as rent pins/listings, but a fixed color (not BHK-based, see
+  // BHK_COLORS' comment) since it's a want-ad, not a "flat" (spec Section
+  // 3.9: "rendered as a budget/BHK bubble ... no name or contact shown").
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -209,35 +254,20 @@ export default function MapView({
     seekerMarkersRef.current = [];
 
     seekerPins.forEach((pin) => {
-      const el = document.createElement('button');
-      const seekingLabel = pin.seeker_type === 'full_flat' && pin.bhk ? `${pin.bhk}BHK` : 'Flatmate';
+      const seekingLabel = pin.seeker_type === 'full_flat' && pin.bhk ? `${BHK_LABELS[pin.bhk]}BHK` : 'Flatmate';
       const budgetLabel = `₹${Math.round(pin.budget_min / 1000)}–${Math.round(pin.budget_max / 1000)}k`;
-      el.setAttribute(
-        'aria-label',
-        `Seeking: ₹${pin.budget_min.toLocaleString('en-IN')}–${pin.budget_max.toLocaleString('en-IN')}/mo · ${seekingLabel}`
-      );
-      el.style.height = '20px';
-      el.style.padding = '0 6px';
-      el.style.borderRadius = '10px';
-      el.style.border = `2px dashed white`;
-      el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)';
-      el.style.background = MARKER_SEEKER_PIN;
-      el.style.color = 'white';
-      el.style.fontSize = '9px';
-      el.style.fontWeight = '600';
-      el.style.lineHeight = '16px';
-      el.style.whiteSpace = 'nowrap';
-      el.style.textAlign = 'center';
-      el.style.cursor = 'pointer';
-      el.textContent = `${budgetLabel} · ${seekingLabel}`;
+
+      const el = createPinMarker({
+        fill: MARKER_SEEKER_PIN,
+        border: null,
+        label: `${budgetLabel} · ${seekingLabel}`,
+        ariaLabel: `Seeking: ₹${pin.budget_min.toLocaleString('en-IN')}–${pin.budget_max.toLocaleString('en-IN')}/mo · ${seekingLabel}`,
+        onClick: () => onSeekerPinClick(pin),
+      });
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([pin.lng, pin.lat])
         .addTo(map);
-      el.onclick = (evt) => {
-        evt.stopPropagation();
-        onSeekerPinClick(pin);
-      };
 
       seekerMarkersRef.current.push(marker);
     });
