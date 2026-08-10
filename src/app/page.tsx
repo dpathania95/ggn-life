@@ -258,7 +258,7 @@ export default function HomePage() {
           <SearchBar onSelect={(lat, lng) => setFlyTo({ lat, lng })} />
           <button
             onClick={() => setFiltersOpen(true)}
-            className="flex items-center gap-1.5 rounded-2xl border border-stone-200 bg-white/90 px-4 py-3 text-sm font-medium text-stone-900 shadow-md backdrop-blur"
+            className="flex items-center gap-1.5 rounded-2xl border border-stone-200 bg-white/90 px-4 py-3 text-sm font-medium text-stone-900 shadow-md backdrop-blur cursor-pointer"
           >
             <Filter className="h-4 w-4" />
             Filters
@@ -267,7 +267,7 @@ export default function HomePage() {
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setAreaStatsOpen(true)}
-            className="rounded-full border border-stone-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-stone-900 shadow-md backdrop-blur"
+            className="rounded-full border border-stone-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-stone-900 shadow-md backdrop-blur cursor-pointer"
           >
             Stats
           </button>
@@ -283,7 +283,7 @@ export default function HomePage() {
                 setDropLocation(null);
                 setSeekerType(null);
               }}
-              className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium shadow-md backdrop-blur transition ${
+              className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium shadow-md backdrop-blur transition cursor-pointer ${
                 activeFlow === flow
                   ? 'border-brand-600 bg-brand-600 text-white'
                   : 'border-stone-200 bg-white/90 text-stone-900'
