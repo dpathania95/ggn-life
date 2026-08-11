@@ -47,6 +47,68 @@ const BHK_LABELS: Record<RentBhk, string> = {
 const MARKER_SEEKER_PIN = '#e87ba4'; // magenta
 const MARKER_OUTLIER_BORDER = '#c99a2e'; // gold dashed border — status flag, not a fill override, so the BHK color underneath still reads
 
+// Clustering ignores pin type entirely — a cluster badge is just "N pins
+// near here" regardless of whether they're rent pins, listings, or seeker
+// pins, so it gets one neutral color rather than reusing any pin-type or
+// BHK color (which would misleadingly suggest the cluster is one type/BHK).
+const CLUSTER_COLOR = '#1f2937';
+
+// Pins within this many screen pixels of each other collapse into one
+// cluster badge — recomputed on 'zoomend' since pixel distance between two
+// fixed coordinates changes with zoom (panning alone doesn't affect it, so
+// there's no need to recompute on plain moves).
+const CLUSTER_PIXEL_RADIUS = 50;
+const CLUSTER_ZOOM_STEP = 3;
+
+interface ClusterGroup<T> {
+  items: T[];
+  lng: number;
+  lat: number;
+}
+
+// Greedy, not a true nearest-neighbor clustering (a point can join a group
+// via just one close neighbor, so a cluster's total spread can exceed 2×
+// radius) — an acceptable approximation for decluttering a few dozen to a
+// few hundred pins, not worth a real clustering library at this scale.
+function clusterByPixelDistance<T>(
+  map: MLMap,
+  items: T[],
+  getLngLat: (item: T) => [number, number]
+): ClusterGroup<T>[] {
+  const points = items.map((item) => {
+    const [lng, lat] = getLngLat(item);
+    const { x, y } = map.project([lng, lat]);
+    return { item, lng, lat, x, y };
+  });
+
+  const used = new Array(points.length).fill(false);
+  const clusters: ClusterGroup<T>[] = [];
+
+  for (let i = 0; i < points.length; i++) {
+    if (used[i]) continue;
+    used[i] = true;
+    const group = [points[i]];
+
+    for (let j = i + 1; j < points.length; j++) {
+      if (used[j]) continue;
+      const dx = points[j].x - points[i].x;
+      const dy = points[j].y - points[i].y;
+      if (Math.sqrt(dx * dx + dy * dy) <= CLUSTER_PIXEL_RADIUS) {
+        used[j] = true;
+        group.push(points[j]);
+      }
+    }
+
+    clusters.push({
+      items: group.map((p) => p.item),
+      lng: group.reduce((sum, p) => sum + p.lng, 0) / group.length,
+      lat: group.reduce((sum, p) => sum + p.lat, 0) / group.length,
+    });
+  }
+
+  return clusters;
+}
+
 // Rounded-rectangle "callout" badge with a small triangle tail pointing
 // down to the exact location — matches the pin style on bengaluru.rent,
 // shared by all three marker types. MapLibre's default marker anchor
@@ -101,6 +163,64 @@ function createPinMarker(options: {
   return el;
 }
 
+// Tags each pin with its type so the combined, type-agnostic clustering
+// pass (all three lists merged into one) can still dispatch to the right
+// styling/click-handler once a cluster resolves down to a single pin.
+type MapPin =
+  | { kind: 'rent'; data: RentPin }
+  | { kind: 'listing'; data: Listing }
+  | { kind: 'seeker'; data: SeekerPin };
+
+function pinKey(pin: MapPin): string {
+  return `${pin.kind}:${pin.data.id}`;
+}
+
+function createMarkerForPin(
+  pin: MapPin,
+  handlers: {
+    onRentPinClick: (pin: RentPin) => void;
+    onListingClick: (listing: Listing) => void;
+    onSeekerPinClick: (pin: SeekerPin) => void;
+  }
+): HTMLButtonElement {
+  switch (pin.kind) {
+    case 'rent': {
+      const p = pin.data;
+      return createPinMarker({
+        fill: BHK_COLORS[p.bhk],
+        border: p.is_outlier ? `2px dashed ${MARKER_OUTLIER_BORDER}` : null,
+        label: `${BHK_LABELS[p.bhk]}BHK · ₹${Math.round(p.rent / 1000)}k`,
+        ariaLabel: `₹${p.rent.toLocaleString('en-IN')}/mo · ${BHK_LABELS[p.bhk]} BHK${p.is_outlier ? ' (unverified)' : ''}`,
+        onClick: () => handlers.onRentPinClick(p),
+      });
+    }
+    case 'listing': {
+      const l = pin.data;
+      return createPinMarker({
+        fill: BHK_COLORS[l.bhk],
+        border: null,
+        label: `${BHK_LABELS[l.bhk]}BHK · ₹${Math.round(l.rent / 1000)}k`,
+        ariaLabel: `Listing: ₹${l.rent.toLocaleString('en-IN')}/mo · ${BHK_LABELS[l.bhk]} BHK · ${
+          l.type === 'whole_flat' ? 'Whole flat' : 'Room'
+        }`,
+        onClick: () => handlers.onListingClick(l),
+      });
+    }
+    case 'seeker': {
+      const p = pin.data;
+      const seekingLabel = p.seeker_type === 'full_flat' && p.bhk ? `${BHK_LABELS[p.bhk]}BHK` : 'Flatmate';
+      const budgetLabel = `₹${Math.round(p.budget_min / 1000)}–${Math.round(p.budget_max / 1000)}k`;
+      return createPinMarker({
+        fill: MARKER_SEEKER_PIN,
+        border: null,
+        label: `${budgetLabel} · ${seekingLabel}`,
+        ariaLabel: `Seeking: ₹${p.budget_min.toLocaleString('en-IN')}–${p.budget_max.toLocaleString('en-IN')}/mo · ${seekingLabel}`,
+        onClick: () => handlers.onSeekerPinClick(p),
+      });
+    }
+  }
+}
+
 interface MapViewProps {
   rentPins: RentPin[];
   listings: Listing[];
@@ -126,9 +246,14 @@ export default function MapView({
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
-  const rentMarkersRef = useRef<Marker[]>([]);
-  const listingMarkersRef = useRef<Marker[]>([]);
-  const seekerMarkersRef = useRef<Marker[]>([]);
+  // Individual (non-clustered) pin markers persist across renders, keyed by
+  // a stable "kind:id" — a pin whose cluster membership hasn't changed
+  // keeps its existing DOM marker untouched instead of being torn down and
+  // recreated. Cluster badges have no stable identity across renders
+  // (membership shifts with every zoom/pan) so they're simply rebuilt each
+  // time; there are usually far fewer of them than individual pins.
+  const individualMarkersRef = useRef<Map<string, Marker>>(new Map());
+  const clusterMarkersRef = useRef<Marker[]>([]);
 
   // The map's 'click' listener is attached once below and must never see a
   // stale closure — onMapClick now depends on activeFlow (armed entry-flow
@@ -185,93 +310,81 @@ export default function MapView({
     mapRef.current?.flyTo({ center: [flyTo.lng, flyTo.lat], zoom: SEARCH_FLY_TO_ZOOM });
   }, [flyTo]);
 
-  // Re-render rent pin markers whenever the pin list changes — pin,
-  // colored by BHK, with an outlier flag shown as a dashed gold border
-  // rather than replacing the fill (so the BHK color still reads).
+  // Re-render markers whenever any pin list changes (or the map finishes
+  // zooming, since that changes which pins cluster together). Clustering
+  // runs across ALL pin types together — a cluster is just "N pins near
+  // here" regardless of type — so this is one combined pass, not three.
+  //
+  // Individual pins that were already on the map and are still shown
+  // individually (not newly clustered/unclustered) keep their existing DOM
+  // marker rather than being torn down and recreated — this used to
+  // rebuild every marker on every zoomend AND on every viewport refetch
+  // (which fires on plain pans too, not just zooms), which was the actual
+  // source of the lag: DOM churn on markers that hadn't visually changed
+  // at all, not the O(n²) clustering math itself (cheap at this pin count).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    rentMarkersRef.current.forEach((m) => m.remove());
-    rentMarkersRef.current = [];
+    const render = () => {
+      const allPins: MapPin[] = [
+        ...rentPins.map((data): MapPin => ({ kind: 'rent', data })),
+        ...listings.map((data): MapPin => ({ kind: 'listing', data })),
+        ...seekerPins.map((data): MapPin => ({ kind: 'seeker', data })),
+      ];
 
-    rentPins.forEach((pin) => {
-      const el = createPinMarker({
-        fill: BHK_COLORS[pin.bhk],
-        border: pin.is_outlier ? `2px dashed ${MARKER_OUTLIER_BORDER}` : null,
-        label: `${BHK_LABELS[pin.bhk]}BHK · ₹${Math.round(pin.rent / 1000)}k`,
-        ariaLabel: `₹${pin.rent.toLocaleString('en-IN')}/mo · ${BHK_LABELS[pin.bhk]} BHK${pin.is_outlier ? ' (unverified)' : ''}`,
-        onClick: () => onRentPinClick(pin),
+      const clusters = clusterByPixelDistance(map, allPins, (pin) => [pin.data.lng, pin.data.lat]);
+
+      const keepKeys = new Set<string>();
+      const newClusterMarkers: Marker[] = [];
+
+      clusters.forEach((cluster) => {
+        if (cluster.items.length === 1) {
+          const pin = cluster.items[0];
+          const key = pinKey(pin);
+          keepKeys.add(key);
+          if (individualMarkersRef.current.has(key)) return; // unchanged — reuse as-is
+
+          const el = createMarkerForPin(pin, { onRentPinClick, onListingClick, onSeekerPinClick });
+          const marker = new maplibregl.Marker({ element: el })
+            .setLngLat([pin.data.lng, pin.data.lat])
+            .addTo(map);
+          individualMarkersRef.current.set(key, marker);
+        } else {
+          const lngLat: [number, number] = [cluster.lng, cluster.lat];
+          const count = cluster.items.length;
+          const el = createPinMarker({
+            fill: CLUSTER_COLOR,
+            border: null,
+            label: `${count} flats`,
+            ariaLabel: `${count} pins in this area — click to zoom in`,
+            onClick: () => map.easeTo({ center: lngLat, zoom: map.getZoom() + CLUSTER_ZOOM_STEP }),
+          });
+          newClusterMarkers.push(new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map));
+        }
       });
 
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([pin.lng, pin.lat])
-        .addTo(map);
+      // Drop individual markers that are no longer shown individually
+      // (now clustered, or removed from the underlying data).
+      for (const [key, marker] of individualMarkersRef.current) {
+        if (!keepKeys.has(key)) {
+          marker.remove();
+          individualMarkersRef.current.delete(key);
+        }
+      }
 
-      rentMarkersRef.current.push(marker);
-    });
-  }, [rentPins, onRentPinClick]);
+      // Cluster badges have no stable identity across renders, so they're
+      // always fully replaced — cheap, since there are usually few of them.
+      clusterMarkersRef.current.forEach((m) => m.remove());
+      clusterMarkersRef.current = newClusterMarkers;
+    };
 
-  // Re-render listing markers whenever the listing list changes — same
-  // pin shape and BHK color scale as rent pins (spec: "different colors
-  // for different BHK flats" applies to both), with a small house glyph
-  // in the label so a listing doesn't read as a rent pin at a glance.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    listingMarkersRef.current.forEach((m) => m.remove());
-    listingMarkersRef.current = [];
-
-    listings.forEach((listing) => {
-      const el = createPinMarker({
-        fill: BHK_COLORS[listing.bhk],
-        border: null,
-        label: `${BHK_LABELS[listing.bhk]}BHK · ₹${Math.round(listing.rent / 1000)}k`,
-        ariaLabel: `Listing: ₹${listing.rent.toLocaleString('en-IN')}/mo · ${BHK_LABELS[listing.bhk]} BHK · ${
-          listing.type === 'whole_flat' ? 'Whole flat' : 'Room'
-        }`,
-        onClick: () => onListingClick(listing),
-      });
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([listing.lng, listing.lat])
-        .addTo(map);
-
-      listingMarkersRef.current.push(marker);
-    });
-  }, [listings, onListingClick]);
-
-  // Re-render seeker pin markers whenever the list changes — same pin
-  // shape as rent pins/listings, but a fixed color (not BHK-based, see
-  // BHK_COLORS' comment) since it's a want-ad, not a "flat" (spec Section
-  // 3.9: "rendered as a budget/BHK bubble ... no name or contact shown").
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    seekerMarkersRef.current.forEach((m) => m.remove());
-    seekerMarkersRef.current = [];
-
-    seekerPins.forEach((pin) => {
-      const seekingLabel = pin.seeker_type === 'full_flat' && pin.bhk ? `${BHK_LABELS[pin.bhk]}BHK` : 'Flatmate';
-      const budgetLabel = `₹${Math.round(pin.budget_min / 1000)}–${Math.round(pin.budget_max / 1000)}k`;
-
-      const el = createPinMarker({
-        fill: MARKER_SEEKER_PIN,
-        border: null,
-        label: `${budgetLabel} · ${seekingLabel}`,
-        ariaLabel: `Seeking: ₹${pin.budget_min.toLocaleString('en-IN')}–${pin.budget_max.toLocaleString('en-IN')}/mo · ${seekingLabel}`,
-        onClick: () => onSeekerPinClick(pin),
-      });
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([pin.lng, pin.lat])
-        .addTo(map);
-
-      seekerMarkersRef.current.push(marker);
-    });
-  }, [seekerPins, onSeekerPinClick]);
+    render();
+    map.on('zoomend', render);
+    return () => {
+      map.off('zoomend', render);
+    };
+  }, [rentPins, listings, seekerPins, onRentPinClick, onListingClick, onSeekerPinClick]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }
