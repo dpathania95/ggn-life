@@ -241,9 +241,23 @@ export default function HomePage() {
           if (!activeFlow) return;
           setDropLocation({ lat, lng });
         }}
-        onRentPinClick={setSelectedPin}
-        onListingClick={setSelectedListing}
-        onSeekerPinClick={setSelectedSeekerPin}
+        onRentPinClick={(pin) => {
+          // Only one detail card should ever be open at a time — opening
+          // one closes whichever of the other two was already showing.
+          setSelectedPin(pin);
+          setSelectedListing(null);
+          setSelectedSeekerPin(null);
+        }}
+        onListingClick={(listing) => {
+          setSelectedListing(listing);
+          setSelectedPin(null);
+          setSelectedSeekerPin(null);
+        }}
+        onSeekerPinClick={(pin) => {
+          setSelectedSeekerPin(pin);
+          setSelectedPin(null);
+          setSelectedListing(null);
+        }}
         onBoundsChange={handleBoundsChange}
       />
 
